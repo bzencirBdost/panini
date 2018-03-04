@@ -1,309 +1,483 @@
 pragma solidity ^0.4.20;
 
-import "browser/Token.sol";
+//import "browser/FixedSupplyToken.sol";
+//test old. icin herseyi tek kodda topladim.
 
-contract PanSimTok is TokenContractFragment {
+contract PaniniSimpleToken is FixedSupplyToken {
+     
+    string name;
+    string surname;
+    uint byear;    
     
-    enum rockPaperScissors {
-        ROCK,
-        PAPER,
-        SCISSORS
-    }
-
-    enum gameState {
-        PENDING,
-        STARTED,
-        ABONDED,
-        FINISHED
+    function PaniniSimpleToken(string _name, uint _byear) public {
+        name = _name;
+        surname = "bdost";
+        byear = _byear;
     }
     
-    event BuyGameMoney(address indexed sender, uint amounth);
-    event SellGameMoney(address indexed sender, uint amounth);
-    event CollectedTokenFrom(address indexed from, uint token);
-    
-    struct Player {
-        address supporter;
-        uint dept; // to supporter
-        string name;
-        uint gameMoney;
-        bool registered;
-        uint score;
-        bool inGame;
-    } 
-    
-    struct Game {
-        address host;
-        address joiner;
-        gameState state;
-        address winner;
-        uint raisedMoney; 
-        
-        rockPaperScissors rpsHost;
-        rockPaperScissors rpsJoiner;
-        
+    function getName() public view returns(string) {
+        return name;        
     }
     
-    string bestPlayer;
-    uint bestScore;
+    function setName(string _name) public {
+        name = _name;
+    }
     
-    mapping(address => Player) players;
-    mapping(address => mapping(address => Player)) playersOfSupporters;
+    function getSurName() public view returns(string) {
+        return surname;        
+    }
+    
+    function getAge() public payable returns(uint) {
+        DateTime dt = new DateTime();
+        uint nowYear = dt.getYear(now);
+        require(nowYear >= byear);
+        return nowYear - byear;
+    }
+    
+    
+}
 
-    mapping(address => uint ) raisedGameMoney;
-    mapping(address => Game) createdGames;
-    mapping(address => address) joinedHost;
-    
-    
-      
-    modifier canStartOrJoinNewGame() {
 
-        require( ( createdGames[msg.sender].state == gameState.ABONDED || createdGames[msg.sender].state == gameState.FINISHED)
-              && ( createdGames[joinedHost[msg.sender]].state == gameState.ABONDED || createdGames[joinedHost[msg.sender]].state == gameState.FINISHED ) );
+//link : https://theethereum.wiki/w/index.php/ERC20_Token_Standard
+// ----------------------------------------------------------------------------
+// 'FIXED' 'Example Fixed Supply Token' token contract
+//
+// Symbol      : FIXED
+// Name        : Example Fixed Supply Token
+// Total supply: 1,000,000.000000000000000000
+// Decimals    : 18
+//
+// Enjoy.
+//
+// (c) BokkyPooBah / Bok Consulting Pty Ltd 2017. The MIT Licence.
+// ----------------------------------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+// Safe maths
+// ----------------------------------------------------------------------------
+library SafeMath {
+    function add(uint a, uint b) internal pure returns (uint c) {
+        c = a + b;
+        require(c >= a);
+    }
+    function sub(uint a, uint b) internal pure returns (uint c) {
+        require(b <= a);
+        c = a - b;
+    }
+    function mul(uint a, uint b) internal pure returns (uint c) {
+        c = a * b;
+        require(a == 0 || c / a == b);
+    }
+    function div(uint a, uint b) internal pure returns (uint c) {
+        require(b > 0);
+        c = a / b;
+    }
+}
+
+
+// ----------------------------------------------------------------------------
+// ERC Token Standard #20 Interface
+// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
+// ----------------------------------------------------------------------------
+contract ERC20Interface {
+    function totalSupply() public constant returns (uint);
+    function balanceOf(address tokenOwner) public constant returns (uint balance);
+    function allowance(address tokenOwner, address spender) public constant returns (uint remaining);
+    function transfer(address to, uint tokens) public returns (bool success);
+    function approve(address spender, uint tokens) public returns (bool success);
+    function transferFrom(address from, address to, uint tokens) public returns (bool success);
+
+    event Transfer(address indexed from, address indexed to, uint tokens);
+    event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
+}
+
+
+// ----------------------------------------------------------------------------
+// Contract function to receive approval and execute function in one call
+//
+// Borrowed from MiniMeToken
+// ----------------------------------------------------------------------------
+contract ApproveAndCallFallBack {
+    function receiveApproval(address from, uint256 tokens, address token, bytes data) public;
+}
+
+
+// ----------------------------------------------------------------------------
+// Owned contract
+// ----------------------------------------------------------------------------
+contract Owned {
+    address public owner;
+    address public newOwner;
+
+    event OwnershipTransferred(address indexed _from, address indexed _to);
+
+    function Owned() public {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == owner);
         _;
     }
-    
-    modifier pendingGame() {
 
-        require( createdGames[msg.sender].state == gameState.PENDING );
-        _;
+    function transferOwnership(address _newOwner) public onlyOwner {
+        newOwner = _newOwner;
+    }
+    function acceptOwnership() public {
+        require(msg.sender == newOwner);
+        OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+        newOwner = address(0);
     }
     
-    modifier inGame() {
-
-        require(  createdGames[msg.sender].state == gameState.STARTED 
-                || createdGames[joinedHost[msg.sender]].state == gameState.STARTED );
-        _;
+    function kill() public{
+        if (msg.sender == owner) selfdestruct(owner);
     }
     
-    function startGame( uint amounth ) public isPlayer canStartOrJoinNewGame{
+}
 
-        address sender = msg.sender;
-        require(players[sender].gameMoney > amounth );
 
-        raisedGameMoney[sender] = amounth;
-        players[sender].gameMoney = players[sender].gameMoney.sub(amounth);
+// ----------------------------------------------------------------------------
+// ERC20 Token, with the addition of symbol, name and decimals and an
+// initial fixed supply
+// ----------------------------------------------------------------------------
+contract FixedSupplyToken is ERC20Interface, Owned {
+    using SafeMath for uint;
 
-        createdGames[sender].host = sender;
-        createdGames[sender].state = gameState.PENDING;
-        createdGames[sender].raisedMoney = amounth;
+    string public symbol;
+    string public  name;
+    uint8 public decimals;
+    uint public _totalSupply;
 
-        
-    }
+    mapping(address => uint) balances;
+    mapping(address => mapping(address => uint)) allowed;
 
-    function joinGame(address to ) public isPlayer canStartOrJoinNewGame{
 
-        address sender = msg.sender;
-        
-        // to -> creater of a pending game?
-        require(createdGames[to].host == to && createdGames[to].state == gameState.PENDING);
-        joinedHost[sender] = to;
-
-        // oyuna katilmak icin parasi var mi?
-        uint amounth = createdGames[sender].raisedMoney;
-        require(players[sender].gameMoney > amounth );
-
-        // parayi ayir
-        raisedGameMoney[sender] = amounth;
-        players[sender].gameMoney = players[sender].gameMoney.sub(amounth);
-        
-        createdGames[to].joiner = sender;
-        createdGames[to].state = gameState.STARTED;
-
+    // ------------------------------------------------------------------------
+    // Constructor
+    // ------------------------------------------------------------------------
+    function FixedSupplyToken() public {
+        symbol = "FIXED";
+        name = "Example Fixed Supply Token";
+        decimals = 18;
+        _totalSupply = 1000000 * 10**uint(decimals);
+        balances[owner] = _totalSupply;
+        Transfer(address(0), owner, _totalSupply);
     }
 
 
-    function abontGame() public isPlayer {
-        
-        //sender:host.
-        if ( createdGames[msg.sender].state == gameState.PENDING) {
-                
-            players[msg.sender].gameMoney = players[msg.sender].gameMoney.add(raisedGameMoney[msg.sender]);
-            raisedGameMoney[msg.sender] = 0;
-            createdGames[msg.sender].state == gameState.ABONDED;
-        } else if ( createdGames[msg.sender].state == gameState.STARTED ) {
-            address joiner = createdGames[msg.sender].joiner;
-            
-            players[msg.sender].gameMoney = players[msg.sender].gameMoney.add(raisedGameMoney[msg.sender]);
-            raisedGameMoney[msg.sender] = 0;
-            
-            players[joiner].gameMoney = players[joiner].gameMoney.add(raisedGameMoney[joiner]);
-            raisedGameMoney[joiner] = 0;
+    // ------------------------------------------------------------------------
+    // Total supply
+    // ------------------------------------------------------------------------
+    function totalSupply() public constant returns (uint) {
+        return _totalSupply  - balances[address(0)];
+    }
 
-            createdGames[msg.sender].state == gameState.ABONDED;
+
+    // ------------------------------------------------------------------------
+    // Get the token balance for account `tokenOwner`
+    // ------------------------------------------------------------------------
+    function balanceOf(address tokenOwner) public constant returns (uint balance) {
+        return balances[tokenOwner];
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Transfer the balance from token owner's account to `to` account
+    // - Owner's account must have sufficient balance to transfer
+    // - 0 value transfers are allowed
+    // ------------------------------------------------------------------------
+    function transfer(address to, uint tokens) public returns (bool success) {
+        balances[msg.sender] = balances[msg.sender].sub(tokens);
+        balances[to] = balances[to].add(tokens);
+        Transfer(msg.sender, to, tokens);
+        return true;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Token owner can approve for `spender` to transferFrom(...) `tokens`
+    // from the token owner's account
+    //
+    // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
+    // recommends that there are no checks for the approval double-spend attack
+    // as this should be implemented in user interfaces 
+    // ------------------------------------------------------------------------
+    function approve(address spender, uint tokens) public returns (bool success) {
+        allowed[msg.sender][spender] = tokens;
+        Approval(msg.sender, spender, tokens);
+        return true;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Transfer `tokens` from the `from` account to the `to` account
+    // 
+    // The calling account must already have sufficient tokens approve(...)-d
+    // for spending from the `from` account and
+    // - From account must have sufficient balance to transfer
+    // - Spender must have sufficient allowance to transfer
+    // - 0 value transfers are allowed
+    // ------------------------------------------------------------------------
+    function transferFrom(address from, address to, uint tokens) public returns (bool success) {
+        balances[from] = balances[from].sub(tokens);
+        allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
+        balances[to] = balances[to].add(tokens);
+        Transfer(from, to, tokens);
+        return true;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Returns the amount of tokens approved by the owner that can be
+    // transferred to the spender's account
+    // ------------------------------------------------------------------------
+    function allowance(address tokenOwner, address spender) public constant returns (uint remaining) {
+        return allowed[tokenOwner][spender];
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Token owner can approve for `spender` to transferFrom(...) `tokens`
+    // from the token owner's account. The `spender` contract function
+    // `receiveApproval(...)` is then executed
+    // ------------------------------------------------------------------------
+    function approveAndCall(address spender, uint tokens, bytes data) public returns (bool success) {
+        allowed[msg.sender][spender] = tokens;
+        Approval(msg.sender, spender, tokens);
+        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, this, data);
+        return true;
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Don't accept ETH
+    // ------------------------------------------------------------------------
+    function () public payable {
+        revert();
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Owner can transfer out any accidentally sent ERC20 tokens
+    // ------------------------------------------------------------------------
+    function transferAnyERC20Token(address tokenAddress, uint tokens) public onlyOwner returns (bool success) {
+        return ERC20Interface(tokenAddress).transfer(owner, tokens);
+    }
+}
+
+contract DateTime {
+        /*
+         *  Date and Time utilities for ethereum contracts
+         *
+         */
+        struct _DateTime {
+                uint16 year;
+                uint8 month;
+                uint8 day;
+                uint8 hour;
+                uint8 minute;
+                uint8 second;
+                uint8 weekday;
         }
-        
-        //sender:joiner
-        if( createdGames[joinedHost[msg.sender]].state == gameState.STARTED ) {
-            address host = createdGames[msg.sender].host;
 
-            players[msg.sender].gameMoney = players[msg.sender].gameMoney.add(raisedGameMoney[msg.sender]);
-            raisedGameMoney[msg.sender] = 0;
-            
-            players[host].gameMoney = players[host].gameMoney.add(raisedGameMoney[host]);
-            raisedGameMoney[host] = 0;
-            
-            createdGames[joinedHost[msg.sender]].state == gameState.ABONDED;
+        uint constant DAY_IN_SECONDS = 86400;
+        uint constant YEAR_IN_SECONDS = 31536000;
+        uint constant LEAP_YEAR_IN_SECONDS = 31622400;
+
+        uint constant HOUR_IN_SECONDS = 3600;
+        uint constant MINUTE_IN_SECONDS = 60;
+
+        uint16 constant ORIGIN_YEAR = 1970;
+
+        function isLeapYear(uint16 year) public pure returns (bool) {
+                if (year % 4 != 0) {
+                        return false;
+                }
+                if (year % 100 != 0) {
+                        return true;
+                }
+                if (year % 400 != 0) {
+                        return false;
+                }
+                return true;
         }
 
-    }
-
-    function playRock() public isPlayer view inGame{
-        
-        Game memory game = getStartedGame();
-        processGame(game, rockPaperScissors.ROCK );
-    }
-
-    function playPaper() public isPlayer view inGame{
-
-        Game memory game = getStartedGame();
-        processGame(game, rockPaperScissors.PAPER );
-    }
-
-    function playScissors() public isPlayer view inGame{
-
-        Game memory game = getStartedGame();
-        processGame(game, rockPaperScissors.SCISSORS );
-
-    }
-
-    function getStartedGame() isPlayer inGame view internal returns(Game) {
-        if( createdGames[msg.sender].state == gameState.STARTED )  {
-            
-            return createdGames[msg.sender];
-        } else {
-            
-            return createdGames[joinedHost[msg.sender]];
+        function leapYearsBefore(uint year) public pure returns (uint) {
+                year -= 1;
+                return year / 4 - year / 100 + year / 400;
         }
 
-    }
-
-    function processGame( Game game, rockPaperScissors move ) isPlayer view internal{
-        if(game.rpsHost == move ) {
-            
+        function getDaysInMonth(uint8 month, uint16 year) public pure returns (uint8) {
+                if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) {
+                        return 31;
+                }
+                else if (month == 4 || month == 6 || month == 9 || month == 11) {
+                        return 30;
+                }
+                else if (isLeapYear(year)) {
+                        return 29;
+                }
+                else {
+                        return 28;
+                }
         }
-        
-    }
 
+        function parseTimestamp(uint timestamp) internal pure returns (_DateTime dt) {
+                uint secondsAccountedFor = 0;
+                uint buf;
+                uint8 i;
 
-    
-    
-    function PanSimTok() public {
-        balances[tx.origin] = 10000000;
-        bestPlayer = "GM";
-        bestScore = 100;
+                // Year
+                dt.year = getYear(timestamp);
+                buf = leapYearsBefore(dt.year) - leapYearsBefore(ORIGIN_YEAR);
 
-        players[tx.origin].name = "GM";  
-        players[tx.origin].registered = true;
-        players[tx.origin].score = 1000; 
-        players[tx.origin].dept = 0;
-        players[tx.origin].inGame = false;
-    }
-    
-    modifier isPlayer() {
-        require(players[msg.sender].registered == true);
-        _;
-    }
-    
-  
-    function myBalance() public constant returns (uint balance) {
-        return balances[msg.sender];
-    }
-    //support someone for first register
-    // oyuna birisini alan ona kefil oluyor. 
-    // belli bir mebla ile oyuna baslamasini sagliyor.
-    // Bu kisi aldigi meblaya gore oda mebla dagitabilir.
-    // bu yuzden ne kadar destek olacagini belirleyebiliyor.
-    function support(address to, uint token) public{
-        require(!players[to].registered);
-        approve(to, token);
-    }
-    
-    function unSupport(address to) public isPlayer{
-        approve(to, 0);
-    }
+                secondsAccountedFor += LEAP_YEAR_IN_SECONDS * buf;
+                secondsAccountedFor += YEAR_IN_SECONDS * (dt.year - ORIGIN_YEAR - buf);
 
-    // u need to supporter to join game.
-    function register(address supporter, string name) public {
-        
-        address sender = msg.sender;
-        require(!players[sender].registered);
-        
-        uint tokens = allowed[supporter][msg.sender];
-        require(tokens > 0);
-        
-        balances[supporter] = balances[supporter].sub(tokens);
-        allowed[supporter][msg.sender] = 0;
-        balances[msg.sender] = tokens;
-        Transfer(supporter, msg.sender, tokens);
-        
-        players[sender].name = name;  
-        players[sender].registered = true;
-        players[sender].supporter = supporter;
-        players[sender].score = 100; 
-        players[sender].dept = tokens;
-        players[sender].inGame = false;
-        playersOfSupporters[supporter][sender] = players[sender];
+                // Month
+                uint secondsInMonth;
+                for (i = 1; i <= 12; i++) {
+                        secondsInMonth = DAY_IN_SECONDS * getDaysInMonth(i, dt.year);
+                        if (secondsInMonth + secondsAccountedFor > timestamp) {
+                                dt.month = i;
+                                break;
+                        }
+                        secondsAccountedFor += secondsInMonth;
+                }
 
-    
-    }
+                // Day
+                for (i = 1; i <= getDaysInMonth(dt.month, dt.year); i++) {
+                        if (DAY_IN_SECONDS + secondsAccountedFor > timestamp) {
+                                dt.day = i;
+                                break;
+                        }
+                        secondsAccountedFor += DAY_IN_SECONDS;
+                }
 
+                // Hour
+                dt.hour = getHour(timestamp);
 
-    function getMyGameMoney() public view isPlayer returns(uint){
-        
-        return players[msg.sender].gameMoney;
-    }
-    
-    function buyGameMoney(uint amounth) public isPlayer{
-        
-        address sender = msg.sender;
-        // 1wei = 10 game money
-        uint token = amounth.div(10);
-        require(token <= balances[sender] );
-        balances[sender].sub(token);
-        players[sender].gameMoney = players[sender].gameMoney + amounth;
-        BuyGameMoney(sender, amounth);
-    }
-    
-    function sellGameMoney100x(uint number) public isPlayer {
-        
-        address sender = msg.sender;
+                // Minute
+                dt.minute = getMinute(timestamp);
 
-        require(amounth != 0);
-        uint amounth = number.mul(100);
-        require( players[sender].gameMoney >= amounth );
-        players[sender].gameMoney = players[sender].gameMoney.sub(amounth);
+                // Second
+                dt.second = getSecond(timestamp);
 
-        // 1token = 10 game money
-        uint token = number.mul(10);
-        uint dept = players[sender].dept;
-        
-        if (dept > 0 ) {
-            
-            if( dept > token) { //once borcunu ode
-                balances[players[sender].supporter] = balances[players[sender].supporter].add(token);
-                players[sender].dept = dept.sub(token);
-                CollectedTokenFrom(sender, token);
-                token = 0; //bitti
-            } else {
-                //close all dept
-                balances[players[sender].supporter] = balances[players[sender].supporter].add(dept); 
-                CollectedTokenFrom(sender, dept);
-                players[sender].dept = 0;
-                CollectedTokenFrom(sender, dept);
-                token = token.sub(dept); // kalan
-            }
-        } 
-        
-        if(token > 0) {
-            //%10 to supporter.
-            uint unit = token.div(10);
-            balances[players[sender].supporter] = balances[players[sender].supporter].add(unit); 
-            balances[sender] = balances[sender].add(token.sub(unit));
-            
+                // Day of week.
+                dt.weekday = getWeekday(timestamp);
         }
-        
-        SellGameMoney(sender, amounth);
-    }
-    
- 
+
+        function getYear(uint timestamp) public pure returns (uint16) {
+                uint secondsAccountedFor = 0;
+                uint16 year;
+                uint numLeapYears;
+
+                // Year
+                year = uint16(ORIGIN_YEAR + timestamp / YEAR_IN_SECONDS);
+                numLeapYears = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
+
+                secondsAccountedFor += LEAP_YEAR_IN_SECONDS * numLeapYears;
+                secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - numLeapYears);
+
+                while (secondsAccountedFor > timestamp) {
+                        if (isLeapYear(uint16(year - 1))) {
+                                secondsAccountedFor -= LEAP_YEAR_IN_SECONDS;
+                        }
+                        else {
+                                secondsAccountedFor -= YEAR_IN_SECONDS;
+                        }
+                        year -= 1;
+                }
+                return year;
+        }
+
+        function getMonth(uint timestamp) public pure returns (uint8) {
+                return parseTimestamp(timestamp).month;
+        }
+
+        function getDay(uint timestamp) public pure returns (uint8) {
+                return parseTimestamp(timestamp).day;
+        }
+
+        function getHour(uint timestamp) public pure returns (uint8) {
+                return uint8((timestamp / 60 / 60) % 24);
+        }
+
+        function getMinute(uint timestamp) public pure returns (uint8) {
+                return uint8((timestamp / 60) % 60);
+        }
+
+        function getSecond(uint timestamp) public pure returns (uint8) {
+                return uint8(timestamp % 60);
+        }
+
+        function getWeekday(uint timestamp) public pure returns (uint8) {
+                return uint8((timestamp / DAY_IN_SECONDS + 4) % 7);
+        }
+
+        function toTimestamp(uint16 year, uint8 month, uint8 day) public pure returns (uint timestamp) {
+                return toTimestamp(year, month, day, 0, 0, 0);
+        }
+
+        function toTimestamp(uint16 year, uint8 month, uint8 day, uint8 hour) public pure returns (uint timestamp) {
+                return toTimestamp(year, month, day, hour, 0, 0);
+        }
+
+        function toTimestamp(uint16 year, uint8 month, uint8 day, uint8 hour, uint8 minute) public pure returns (uint timestamp) {
+                return toTimestamp(year, month, day, hour, minute, 0);
+        }
+
+        function toTimestamp(uint16 year, uint8 month, uint8 day, uint8 hour, uint8 minute, uint8 second) public pure returns (uint timestamp) {
+                uint16 i;
+
+                // Year
+                for (i = ORIGIN_YEAR; i < year; i++) {
+                        if (isLeapYear(i)) {
+                                timestamp += LEAP_YEAR_IN_SECONDS;
+                        }
+                        else {
+                                timestamp += YEAR_IN_SECONDS;
+                        }
+                }
+
+                // Month
+                uint8[12] memory monthDayCounts;
+                monthDayCounts[0] = 31;
+                if (isLeapYear(year)) {
+                        monthDayCounts[1] = 29;
+                }
+                else {
+                        monthDayCounts[1] = 28;
+                }
+                monthDayCounts[2] = 31;
+                monthDayCounts[3] = 30;
+                monthDayCounts[4] = 31;
+                monthDayCounts[5] = 30;
+                monthDayCounts[6] = 31;
+                monthDayCounts[7] = 31;
+                monthDayCounts[8] = 30;
+                monthDayCounts[9] = 31;
+                monthDayCounts[10] = 30;
+                monthDayCounts[11] = 31;
+
+                for (i = 1; i < month; i++) {
+                        timestamp += DAY_IN_SECONDS * monthDayCounts[i - 1];
+                }
+
+                // Day
+                timestamp += DAY_IN_SECONDS * (day - 1);
+
+                // Hour
+                timestamp += HOUR_IN_SECONDS * (hour);
+
+                // Minute
+                timestamp += MINUTE_IN_SECONDS * (minute);
+
+                // Second
+                timestamp += second;
+
+                return timestamp;
+        }
 }
