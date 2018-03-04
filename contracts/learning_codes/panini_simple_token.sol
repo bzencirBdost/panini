@@ -108,10 +108,10 @@ contract Owned {
 contract FixedSupplyToken is ERC20Interface, Owned {
     using SafeMath for uint;
 
-    string public symbol;
-    string public  name;
-    uint8 public decimals;
-    uint public _totalSupply;
+    string symbol;
+    string  name;
+    uint8 decimals;
+    uint _totalSupply;
 
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
@@ -450,11 +450,22 @@ contract PaniniSimpleToken is FixedSupplyToken {
     string surname;
     mapping (address => string) name;
     mapping (address => uint) byear;
+    DateTime dt;
+    
     function PaniniSimpleToken(string _name, uint _byear) public {
         name[tx.origin] = _name;
         surname = "bdost";
         byear[tx.origin] = _byear;
+        dt = new DateTime();
+        symbol = "bdost";
     }
+
+    function register(string _name, _byear) public payable{
+        name[msg.sender] = _name;
+        byear[msg.sender] = _byear;
+
+    }
+
     
     function getName() public view returns(string) {
         return name[msg.sender];        
@@ -468,11 +479,10 @@ contract PaniniSimpleToken is FixedSupplyToken {
         return surname;        
     }
     
-    function getAge() public payable returns(uint) {
-        DateTime dt = new DateTime();
+    function getAge() public view returns(uint) {
         uint nowYear = dt.getYear(now);
         require(nowYear >= byear[msg.sender]);
-        return nowYear - byear[msg.sender];
+        return (nowYear - byear[msg.sender]);
     }
     
     
