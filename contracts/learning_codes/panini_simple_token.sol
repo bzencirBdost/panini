@@ -460,7 +460,7 @@ contract PaniniSimpleToken is FixedSupplyToken {
         symbol = "bdost";
     }
 
-    function register(string _name, _byear) public payable{
+    function register(string _name, uint _byear) public payable{
         name[msg.sender] = _name;
         byear[msg.sender] = _byear;
 
