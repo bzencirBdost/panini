@@ -4,6 +4,6 @@ import "/general/owned.sol";
 
 contract Mortal is Owned {
     function kill() {
-        if (msg.sender == owner) suicide(owner);
+        if (msg.sender == owner) selfdestruct(owner);
     }
 }
