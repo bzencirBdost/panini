@@ -1,8 +1,54 @@
 
 pragma solidity ^0.4.20;
 
+//import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
+//not: yukaridaki token ozelliklerini kod icerisinde sagliyoruz. Bu yuzden basic gas verimi icin tercih edildi.
+import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721BasicToken.sol";
+
 //randomize icin gerekli olacak.
 //import "github.com/oraclize/ethereum-api/oraclizeAPI.sol";
+
+//Panini ERC721Token
+contract PaniniERC721Token is ERC721BasicToken {
+ 
+    // Token name
+    string internal name_;
+    
+    // Token symbol
+    string internal symbol_;
+
+    function PaniniERC721Token() public {
+        name_ = "Panini Token";
+        symbol_ = "Panini Symbol";
+    }
+    
+    function name() public view returns (string) {
+        return name_;
+    }
+    
+    function symbol() public view returns (string) {
+        return symbol_;
+    }
+
+    function mint(address _to, uint256 _tokenId) public{
+        super._mint(_to, _tokenId);
+    }
+    
+}
+
+contract paniniTokenTest {
+    PaniniERC721Token nft;
+    uint256 nextTokenId;
+    function paniniTokenTest() public {
+        nft = new PaniniERC721Token();
+    }
+    
+    function mint() public{
+        nextTokenId = nextTokenId + 1;
+        nft.mint(msg.sender, nextTokenId);
+    }
+    
+}
 
 //#########################################
 //###               CARDS               ###
