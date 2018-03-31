@@ -108,7 +108,7 @@ contract UsingCard {
     using AnimalCardBase for AnimalCardBase.Data;
     using AnimalCard for AnimalCard.Data;
 
-    //TO DO: NFT nft; //eklenecek. bunun metodlari iceride kullanilacak.
+    PaniniERC721Token nft;
 
     // metedata
     AnimalCardBase.Data[] animalCardBase; 
@@ -131,6 +131,8 @@ contract UsingCard {
         AnimalCard.Data memory emptyAnimalCard = AnimalCard.Data(0, 0, 0);        
         animalCards.push(emptyAnimalCard);
 
+        //hata : bunu bu sekilde kullaninca bunun metodlarinda msg.sender = this contract...
+        nft = new PaniniERC721Token();
     }
     
     function initAnimalCardBase() internal {
@@ -154,12 +156,25 @@ contract UsingCard {
     }
     
     // usuable id between 1 to (n-1)
-    function existAnimalCardBase(uint256 id ) public view returns(bool) {
-        if( id > 0 && id <= animalCardBase.length) {
+    function existAnimalCardBase(uint256 _baseId ) public view returns(bool) {
+        if( _baseId > 0 && _baseId <= animalCardBase.length) {
             return true;
         }
         return false;                
     }
+
+    
+    function existsAnimalCard(uint256 _cardId ) public view returns(bool) {
+        // 2'si de ayni seyi yapiyor. Test etmek icin simdilik bu sekilde.
+        // TO DO: daha sonra birini kaldir?
+        return nft.exists(_cardId) && animalCards[_cardId].baseId != 0;
+    }
+
+    function ownerOfAnimalCard(uint256 _cardId ) public view returns(address) {
+        //animalCards[cardId].ownerId ile player id aliniyordu. bu k
+        return nft.ownerOf(_cardId);
+    }
+
 
     //usuable card id starts with 1.
     function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, AnimalCardBase.Region _region, uint256 _rarity ) internal{
@@ -187,19 +202,19 @@ contract UsingCard {
     //token kullanacak.
     //to: token icin. 
     //baseId: random generated value of basecard index. 
-    function mintCardWithId(address _to, uint256 baseId) internal returns(uint256){
+    function mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
 
         uint256 tokenId = animalCards.length;
-        //to do: add erc721 mint. (_to, id);
+        nft.mint(_to, tokenId);
         // set baseId of metedata
-        AnimalCard.Data memory animalCard = AnimalCard.Data(baseId, tokenId, 0);        
+        AnimalCard.Data memory animalCard = AnimalCard.Data(_baseId, tokenId, 0);        
         animalCards.push(animalCard); 
-        tokensOfEachCards[baseId].push(tokenId);
+        tokensOfEachCards[_baseId].push(tokenId);
         return tokenId;
     }
     
-    function getAnimalCardBase(uint256 id) internal view returns(AnimalCardBase.Data) {
-        return animalCardBase[id].clone();
+    function getAnimalCardBase(uint256 _baseId) internal view returns(AnimalCardBase.Data) {
+        return animalCardBase[_baseId].clone();
     }
             
 }
@@ -215,14 +230,36 @@ library Player {
         string name;
         uint256 number_of_stars;
         //baseId -> cardIndex-tokenId
-        mapping(uint256 => uint256[]) animalCards;    
+        mapping(uint256 => uint256[]) animalCards;
+        //cardId -> index of animalCards[baseId]
+        mapping(uint256 => uint256) animalCardsIndex;    
     }
     
-    function hasCard(Data storage self, uint256 id ) public view returns(bool) {
-        if(self.animalCards[id].length == 0) {
+    function hasCard(Data storage self, uint256 _baseId ) public view returns(bool) {
+        if(self.animalCards[_baseId].length == 0) {
             return false;
         }
         return true;                
+    }
+    
+    function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
+        if(hasCard(self, _baseId)) {
+            uint256 lastItemIndex = self.animalCards[_baseId].length - 1;
+            uint256 lastItem = self.animalCards[_baseId][lastItemIndex];
+ 
+            self.animalCards[_baseId][self.animalCardsIndex[_cardId]] = lastItem;
+            self.animalCards[_baseId][lastItemIndex] = 0;
+            self.animalCards[_baseId].length--;
+ 
+            delete self.animalCardsIndex[_cardId];            
+        }
+    }
+
+    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
+        if(!hasCard(self, _baseId)) {
+            uint256 cardId = _cardId;
+            self.animalCardsIndex[cardId] = self.animalCards[_baseId].push(cardId); 
+        }
     }
     
 }
@@ -246,17 +283,7 @@ contract UsingPlayer is UsingCard{
     function isPlayer(address _address) internal view{
         require(players[_address].id != 0);
     }
-    
-    function addRandomCardToPlayer(address _address) internal {
-        isPlayer(_address);
-        uint256 baseId = generateRandomCardId(players[_address].number_of_stars);
-        //kart'in üretilmesi.
-        uint256 tokenId = mintCardWithId(_address, baseId);
-        players[_address].animalCards[baseId].push(tokenId);
-        animalCards[tokenId].ownerId = players[_address].id;        
-        players[_address].number_of_stars = players[_address].number_of_stars + 1; // simdilik kart sayisi olsun. 
-    }
-    
+
     function register(string _name) public {
         require(players[msg.sender].id == 0);
         number_of_player = number_of_player + 1;
@@ -274,18 +301,53 @@ contract UsingPlayer is UsingCard{
         return players[msg.sender].name;
     }
   
+    function addRandomCardToPlayer(address _address) internal {
+        isPlayer(_address);
+        uint256 baseId = generateRandomCardId(players[_address].number_of_stars);
+        //kart'in üretilmesi.
+        uint256 tokenId = mintCardWithBaseId(_address, baseId);
+        players[_address].addCard(baseId, tokenId);
+        animalCards[tokenId].ownerId = players[_address].id;        
+        players[_address].number_of_stars = players[_address].number_of_stars + 1; // simdilik kart sayisi olsun. 
+    }
+
+    //disariya acacak miyiz? Suan acik, acilmayacaksa bu method'a gerek yok.    
+    function approve(address _to, uint256 _cardId) public {
+        
+        nft.approve(_to, _cardId);
+    }
+
+    function transferFrom(address _from, address _to, uint256 _cardId) public {
+        nft.safeTransferFrom(_from, _to, _cardId);
+        //cart sahibini degistir.
+        animalCards[_cardId].ownerId = players[_to].id;
+        //buradaki tasima islemleri.
+        // remove card from previous player
+        // add card to other player
+        uint256 baseId = animalCards[_cardId].baseId;
+        uint256 cardId = _cardId;
+        players[_from].removeCard(baseId, cardId);
+        players[_to].addCard(baseId, cardId);
+        
+    }
+
+    function balanceOf(address _owner) public view returns (uint256) {
+        return nft.balanceOf(_owner);
+    }
+    
+
     // name and sayisi
-    function getMyCard(uint256 tokenId) __isPlayer public view returns(string, uint256, string) {
+    function getMyCard(uint256 _cardId) __isPlayer public view returns(string, uint256, string) {
         uint256 count = 0;
         string memory name = "";        
         string memory err = "";        
         //kart var mı yani token var mi? : token yok ise baseId = 0 gelecektir.
-        uint256 baseId = animalCards[tokenId].baseId;
+        uint256 baseId = animalCards[_cardId].baseId;
         if (existAnimalCardBase(baseId)) {
             name = animalCardBase[baseId].name;                    
             //cont = players[msg.sender].hasCard(baseId);
             //kartin sahibi mi?
-            if( players[msg.sender].id == animalCards[tokenId].ownerId) {
+            if( players[msg.sender].id == animalCards[_cardId].ownerId) {
                 count = players[msg.sender].animalCards[baseId].length;           
 
             } else {
