@@ -35,7 +35,7 @@ library AnimalCardBase {
     }
     
     //returns clone of base card.
-    function clone(AnimalCardBase.Data self) returns (AnimalCardBase.Data) internal view {
+    function clone(AnimalCardBase.Data self) internal pure returns(AnimalCardBase.Data) {
         return AnimalCardBase.Data(self.id, self.name, self.health, self.weigth, self.speed, self.region, self.rarity);
     }
 
@@ -53,7 +53,7 @@ library AnimalCard {
         
         uint256 baseId; // arr index: 0: empty initialized and never used.
         uint256 tokenId; 
-        address ownerId; //playerId
+        uint256 ownerId; //playerId
     }
 }
 
@@ -89,20 +89,21 @@ contract UsingCard {
     
     function initAnimalCardBase() internal {
         //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
-        createAnimalCardBase('empty', 0, 0, 0, AnimalCard.Region.AFRICA, 0 );        
-        createAnimalCardBase('fil', 1000, 3000, 60, AnimalCard.Region.AFRICA, 14 );        
-        createAnimalCardBase('at', 400, 500, 90, AnimalCard.Region.ASIA, 22 );        
-        createAnimalCardBase('tavsan', 20, 2, 80, AnimalCard.Region.EUROPE, 55 );        
-        createAnimalCardBase('aslan', 200, 200, 80, AnimalCard.Region.AFRICA, 21 );        
+        createAnimalCardBase('empty', 0, 0, 0, AnimalCardBase.Region.AFRICA, 0 );        
+        
+        createAnimalCardBase('fil', 1000, 3000, 60, AnimalCardBase.Region.AFRICA, 14 );        
+        createAnimalCardBase('at', 400, 500, 90, AnimalCardBase.Region.ASIA, 22 );        
+        createAnimalCardBase('tavsan', 20, 2, 80, AnimalCardBase.Region.EUROPE, 55 );        
+        createAnimalCardBase('aslan', 200, 200, 80, AnimalCardBase.Region.AFRICA, 21 );        
 
-        createAnimalCardBase('balina', 10000, 30000, 40, AnimalCard.Region.OCEAN, 14 );        
-        createAnimalCardBase('yunus', 1000, 300, 80, AnimalCard.Region.OCEAN, 25 );        
-        createAnimalCardBase('kilic baligi', 100, 40, 140, AnimalCard.Region.OCEAN, 5 );        
+        createAnimalCardBase('balina', 10000, 30000, 40, AnimalCardBase.Region.OCEAN, 14 );        
+        createAnimalCardBase('yunus', 1000, 300, 80, AnimalCardBase.Region.OCEAN, 25 );        
+        createAnimalCardBase('kilic baligi', 100, 40, 140, AnimalCardBase.Region.OCEAN, 5 );        
 
-        createAnimalCardBase('kartal', 100, 15, 100, AnimalCard.Region.ASIA, 25 );        
-        createAnimalCardBase('guvercin', 10, 1, 30, AnimalCard.Region.SOUTH_AMERICA, 24 );        
+        createAnimalCardBase('kartal', 100, 15, 100, AnimalCardBase.Region.ASIA, 25 );        
+        createAnimalCardBase('guvercin', 10, 1, 30, AnimalCardBase.Region.SOUTH_AMERICA, 24 );        
 
-        createAnimalCardBase('karinca', 1, 1, 1, AnimalCard.Region.EUROPE, 43 );        
+        createAnimalCardBase('karinca', 1, 1, 1, AnimalCardBase.Region.EUROPE, 43 );        
 
     }
     
@@ -115,13 +116,13 @@ contract UsingCard {
     }
 
     //usuable card id starts with 1.
-    function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, AnimalCard.Region _region, uint256 _rarity ) internal{
+    function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, AnimalCardBase.Region _region, uint256 _rarity ) internal{
         uint256 id = animalCardBase.length;
         animalCardBase.push(AnimalCardBase.Data(id, _name, _health, _weigth, _speed, _region, _rarity));
     }
     
     //returns index of animalCardBase
-    function generateRandomCardId(uint256 _number_of_stars) internal returns (uint256) {
+    function generateRandomCardId(uint256 _number_of_stars) internal view returns (uint256) {
         //private test for random
         uint256 id = random;
         uint256 extra = _number_of_stars + 2;
@@ -142,16 +143,16 @@ contract UsingCard {
     //baseId: random generated value of basecard index. 
     function mintCardWithId(address _to, uint256 baseId) internal returns(uint256){
 
-        uint256 memory tokenId = animalCards.length;
+        uint256 tokenId = animalCards.length;
         //to do: add erc721 mint. (_to, id);
         // set baseId of metedata
-        AnimalCard.Data memory animalCard = AnimalCard.Data(baseId, tokenId);        
+        AnimalCard.Data memory animalCard = AnimalCard.Data(baseId, tokenId, 0);        
         animalCards.push(animalCard); 
         tokensOfEachCards[baseId].push(tokenId);
         return tokenId;
     }
     
-    function getAnimalCardBase(uint256 id) internal view returns(AnimalCardBase) {
+    function getAnimalCardBase(uint256 id) internal view returns(AnimalCardBase.Data) {
         return animalCardBase[id].clone();
     }
             
@@ -167,7 +168,7 @@ library Player {
         uint256 id; // adress olabilir, yada id kalsın. bakarız.
         string name;
         uint256 number_of_stars;
-        //baseId -> cardIndex
+        //baseId -> cardIndex-tokenId
         mapping(uint256 => uint256[]) animalCards;    
     }
     
@@ -205,7 +206,7 @@ contract UsingPlayer is UsingCard{
         uint256 baseId = generateRandomCardId(players[_address].number_of_stars);
         //kart'in üretilmesi.
         uint256 tokenId = mintCardWithId(_address, baseId);
-        players[_address].animalCards[baseId] = tokenId;
+        players[_address].animalCards[baseId].push(tokenId);
         animalCards[tokenId].ownerId = players[_address].id;        
         players[_address].number_of_stars = players[_address].number_of_stars + 1; // simdilik kart sayisi olsun. 
     }
@@ -238,8 +239,8 @@ contract UsingPlayer is UsingCard{
             name = animalCardBase[baseId].name;                    
             //cont = players[msg.sender].hasCard(baseId);
             //kartin sahibi mi?
-            if( players[msg.sender].id == animalCards[tokenId].id) {
-                count = players[msg.sender].animalCards[baseId];           
+            if( players[msg.sender].id == animalCards[tokenId].ownerId) {
+                count = players[msg.sender].animalCards[baseId].length;           
 
             } else {
                 //TO DO: get message from struct of messages.
