@@ -29,13 +29,15 @@ contract PaniniERC721Token is ERC721BasicToken {
     function symbol() public view returns (string) {
         return symbol_;
     }
-
-    function mint(address _to, uint256 _tokenId) public{
-        super._mint(_to, _tokenId);
-    }
     
+
 }
 
+//this test failed.
+//   msg.sender = paniniTokenTest.address
+//   thus, in approve method, require(msg.sender == owner) returns false
+//      owner: owner of token  
+//we can use this pattern in market. (cryptoKitties uses for auctions.)
 contract paniniTokenTest {
     PaniniERC721Token nft;
     uint256 nextTokenId;
@@ -45,9 +47,23 @@ contract paniniTokenTest {
     
     function mint() public{
         nextTokenId = nextTokenId + 1;
-        nft.mint(msg.sender, nextTokenId);
+        //if parent has this method:
+        //  function mint(address _to, uint256 _tokenId) public{
+        //      super._mint(_to, _tokenId);
+        //  }
+
+        //nft.mint(msg.sender, nextTokenId);
     }
     
+}
+//true usage:
+contract paniniTokenTest2 is PaniniERC721Token{
+    uint256 nextTokenId;
+    function mint() public{
+        nextTokenId = nextTokenId + 1;
+        super._mint(msg.sender, nextTokenId);
+    }
+ 
 }
 
 //#########################################
@@ -103,12 +119,10 @@ library AnimalCard {
     }
 }
 
-contract UsingCard {
+contract UsingCard is PaniniERC721Token{
 
     using AnimalCardBase for AnimalCardBase.Data;
     using AnimalCard for AnimalCard.Data;
-
-    PaniniERC721Token nft;
 
     // metedata
     AnimalCardBase.Data[] animalCardBase; 
@@ -130,9 +144,6 @@ contract UsingCard {
         initAnimalCardBase();
         AnimalCard.Data memory emptyAnimalCard = AnimalCard.Data(0, 0, 0);        
         animalCards.push(emptyAnimalCard);
-
-        //hata : bunu bu sekilde kullaninca bunun metodlarinda msg.sender = this contract...
-        nft = new PaniniERC721Token();
     }
     
     function initAnimalCardBase() internal {
@@ -162,20 +173,7 @@ contract UsingCard {
         }
         return false;                
     }
-
     
-    function existsAnimalCard(uint256 _cardId ) public view returns(bool) {
-        // 2'si de ayni seyi yapiyor. Test etmek icin simdilik bu sekilde.
-        // TO DO: daha sonra birini kaldir?
-        return nft.exists(_cardId) && animalCards[_cardId].baseId != 0;
-    }
-
-    function ownerOfAnimalCard(uint256 _cardId ) public view returns(address) {
-        //animalCards[cardId].ownerId ile player id aliniyordu. bu k
-        return nft.ownerOf(_cardId);
-    }
-
-
     //usuable card id starts with 1.
     function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, AnimalCardBase.Region _region, uint256 _rarity ) internal{
         uint256 id = animalCardBase.length;
@@ -198,6 +196,13 @@ contract UsingCard {
         //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
     }
     
+    function exists(uint256 _cardId) public view returns (bool) {
+        return super.exists(_cardId);
+    }
+
+    function ownerOf(uint256 _cardId ) public view returns(address) {
+        return super.ownerOf(_cardId);
+    }
     //cart üretilmesi için.
     //token kullanacak.
     //to: token icin. 
@@ -205,7 +210,7 @@ contract UsingCard {
     function mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
 
         uint256 tokenId = animalCards.length;
-        nft.mint(_to, tokenId);
+        super._mint(_to, tokenId);
         // set baseId of metedata
         AnimalCard.Data memory animalCard = AnimalCard.Data(_baseId, tokenId, 0);        
         animalCards.push(animalCard); 
@@ -242,25 +247,30 @@ library Player {
         return true;                
     }
     
+
+    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
+        uint256 cardId = _cardId;
+        self.animalCardsIndex[cardId] = self.animalCards[_baseId].length;
+        self.animalCards[_baseId].push(cardId); 
+    }
+
     function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
-        if(hasCard(self, _baseId)) {
-            uint256 lastItemIndex = self.animalCards[_baseId].length - 1;
-            uint256 lastItem = self.animalCards[_baseId][lastItemIndex];
- 
-            self.animalCards[_baseId][self.animalCardsIndex[_cardId]] = lastItem;
-            self.animalCards[_baseId][lastItemIndex] = 0;
+        if(hasCard(self, _baseId)) {        
+            uint256 cardIndex = self.animalCardsIndex[_cardId];
+            //TODO CONTROL lValue is not (0 -1)
+            uint256 lastCardIndex = self.animalCards[_baseId].length - 1;
+            uint256 lastCard = self.animalCards[_baseId][lastCardIndex];
+
+            self.animalCards[_baseId][cardIndex] = lastCard;
+            self.animalCards[_baseId][lastCardIndex] = 0;
+
             self.animalCards[_baseId].length--;
- 
-            delete self.animalCardsIndex[_cardId];            
+            self.animalCardsIndex[_cardId] = 0;
+            self.animalCardsIndex[lastCard] = cardIndex;
+
         }
     }
 
-    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
-        if(!hasCard(self, _baseId)) {
-            uint256 cardId = _cardId;
-            self.animalCardsIndex[cardId] = self.animalCards[_baseId].push(cardId); 
-        }
-    }
     
 }
 
@@ -311,14 +321,29 @@ contract UsingPlayer is UsingCard{
         players[_address].number_of_stars = players[_address].number_of_stars + 1; // simdilik kart sayisi olsun. 
     }
 
-    //disariya acacak miyiz? Suan acik, acilmayacaksa bu method'a gerek yok.    
-    function approve(address _to, uint256 _cardId) public {
-        
-        nft.approve(_to, _cardId);
+    function balanceOf(address _owner) public view returns (uint256) {
+        return super.balanceOf(_owner);
     }
 
+    function approve(address _to, uint256 _cardId) public {
+        super.approve(_to, _cardId);
+    }
+
+    function getApproved(uint256 _cardId) public view returns (address) {
+        return super.getApproved(_cardId);
+    }
+
+    //TO DO: bazi metodlar disari kapanacak. Bunun disaridan kullanilmasini istemiyoruz mesela.
     function transferFrom(address _from, address _to, uint256 _cardId) public {
-        nft.safeTransferFrom(_from, _to, _cardId);
+        super.transferFrom(_from, _to, _cardId);
+    }        
+
+    function safeTransferFrom(address _from, address _to, uint256 _cardId) public {
+        safeTransferFrom(_from, _to, _cardId, "");        
+    }
+
+    function safeTransferFrom(address _from, address _to, uint256 _cardId, bytes _data) public {
+        super.safeTransferFrom(_from, _to, _cardId, _data);
         //cart sahibini degistir.
         animalCards[_cardId].ownerId = players[_to].id;
         //buradaki tasima islemleri.
@@ -331,10 +356,6 @@ contract UsingPlayer is UsingCard{
         
     }
 
-    function balanceOf(address _owner) public view returns (uint256) {
-        return nft.balanceOf(_owner);
-    }
-    
 
     // name and sayisi
     function getMyCard(uint256 _cardId) __isPlayer public view returns(string, uint256, string) {
