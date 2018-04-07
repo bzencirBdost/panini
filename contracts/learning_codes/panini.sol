@@ -30,7 +30,6 @@ contract PaniniERC721Token is ERC721BasicToken {
         return symbol_;
     }
     
-
 }
 
 //this test failed.
@@ -39,19 +38,16 @@ contract PaniniERC721Token is ERC721BasicToken {
 //      owner: owner of token  
 //we can use this pattern in market. (cryptoKitties uses for auctions.)
 contract paniniTokenTest {
-    PaniniERC721Token nft;
+    //PaniniERC721Token nft;
     uint256 nextTokenId;
+    
     function paniniTokenTest() public {
-        nft = new PaniniERC721Token();
+        //nft = new PaniniERC721Token();
     }
     
     function mint() public{
         nextTokenId = nextTokenId + 1;
-        //if parent has this method:
-        //  function mint(address _to, uint256 _tokenId) public{
-        //      super._mint(_to, _tokenId);
-        //  }
-
+      
         //nft.mint(msg.sender, nextTokenId);
     }
     
@@ -65,6 +61,248 @@ contract paniniTokenTest2 is PaniniERC721Token{
     }
  
 }
+
+//#########################################
+//###    PANINI OWNERS - CONTROLLER     ###
+//#########################################
+
+contract PaniniOwner{
+    address private owner;
+    address public pendingOwner;
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    function PaniniOwner() public {
+        owner = msg.sender;
+    }
+
+    modifier __onlyPendingOwner() {
+        require(msg.sender == pendingOwner);
+        _;
+    }
+
+    function isOwner() view internal returns(bool res){
+        if(msg.sender == owner) {
+            res = true;
+        }
+    }
+
+    modifier __onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    
+    
+    function transferOwnership(address newOwner) __onlyOwner public {
+        pendingOwner = newOwner;
+    }
+
+    function claimOwnership() __onlyPendingOwner public {
+        emit OwnershipTransferred(owner, pendingOwner);
+        owner = pendingOwner;
+        pendingOwner = address(0);
+    }
+}
+
+library Role {
+
+    enum RoleType {
+        CEO,
+        CFO,
+        COO
+    }
+
+    struct Data {
+        RoleType roleType;
+        bool active;
+        string createdTime; //Date olabilir sonra
+    }
+
+}
+
+contract UsingRole{
+    using Role for Role.Data;
+
+}
+
+
+/**
+ * The paniniDevAccount contract does this and that...
+ */
+contract PaniniDevAccounts is PaniniOwner, UsingRole {
+    
+    mapping(address => Role.Data) public devAccounts;
+
+    event DevAccountRoleAdded(address _address);
+    event DevAccountRoleRemoved(address _address);
+    
+    function PaniniDevAccounts() public {
+        
+    }    
+
+    function addDevAccount(address _address, Role.RoleType _roleType, bool _active) __onlyOwner public returns(bool success) {
+        if( devAccounts[_address].active == false ) {            
+            devAccounts[_address].active = _active;
+            devAccounts[_address].roleType = _roleType;
+            devAccounts[_address].createdTime = "created Time";
+            emit DevAccountRoleAdded(_address); //event'e role eklenebilir mi acaba?
+            success = true;
+        }
+    }
+    
+    function removeDevAccount(address _address) __onlyOwner public returns(bool success) {
+        if( devAccounts[_address].active == true ) {            
+            devAccounts[_address].active = false;
+            delete devAccounts[_address];
+            emit DevAccountRoleRemoved(_address); //event'e role eklenebilir mi acaba?
+            success = true;
+        }
+    }
+   
+    modifier __onlyCEO() {
+
+        require(devAccounts[msg.sender].active == true);        
+        require(devAccounts[msg.sender].roleType == Role.RoleType.CEO);
+        _;
+    }
+
+    modifier __onlyCFO() {
+
+        require(devAccounts[msg.sender].active == true);        
+        require(devAccounts[msg.sender].roleType == Role.RoleType.CFO);
+        _;
+    }
+
+    modifier __onlyCOO() {
+
+        require(devAccounts[msg.sender].active == true);        
+        require(devAccounts[msg.sender].roleType == Role.RoleType.COO);
+        _;
+    }
+
+    /* err in usage.
+    modifier __OnlyForThisRoles(bool _withOwner, Role.RoleType[] _roles) {
+        bool result = false;
+        if(_withOwner && isOwner()) {
+            result = true;
+        }
+        if(devAccounts[msg.sender].active == true) {
+            for(uint256 i = 0; i < _roles.length; i++) {
+                if( devAccounts[msg.sender].roleType == _role[i]) {
+                    result = true;                                
+                }
+            }
+        }
+        require (result == true);        
+        _;
+    }*/
+
+    modifier __OnlyForThisRoles1(bool _withOwner, Role.RoleType _role1 ) {
+        bool result = false;
+        if(_withOwner && isOwner()) {
+            result = true;
+        }
+        if(devAccounts[msg.sender].active == true && devAccounts[msg.sender].roleType == _role1 ) {
+            result = true;            
+        }
+        require (result == true);        
+        _;
+    }
+
+    modifier __OnlyForThisRoles2(bool _withOwner, Role.RoleType _role1, Role.RoleType _role2 ) {
+        bool result = false;
+        if(_withOwner && isOwner()) {
+            result = true;
+        }
+        if(devAccounts[msg.sender].active == true) {
+            if( devAccounts[msg.sender].roleType == _role1 
+                || devAccounts[msg.sender].roleType == _role2) {
+                result = true;            
+            }
+        }
+        require (result == true);        
+        _;
+    }
+
+    modifier __OnlyForThisRoles3(bool _withOwner, Role.RoleType _role1, Role.RoleType _role2, Role.RoleType _role3 ) {
+        bool result = false;
+        if(_withOwner && isOwner()) {
+            result = true;
+        }
+        if(devAccounts[msg.sender].active == true) {
+            if( devAccounts[msg.sender].roleType == _role1 
+                || devAccounts[msg.sender].roleType == _role2                 
+                || devAccounts[msg.sender].roleType == _role3) {
+                result = true;            
+            }
+        }
+        require (result == true);        
+        _;
+    }
+
+}
+
+
+library PaniniState {
+
+    struct Data {
+        bool paused;
+    }
+
+    function pause(PaniniState.Data self) pure internal {
+        self.paused = true;
+    }
+
+    function unPause(PaniniState.Data self) pure internal {
+        self.paused = false;
+    }
+
+}
+
+contract UsingPaniniState{
+    using PaniniState for PaniniState.Data;
+
+}
+
+contract PaniniController is PaniniDevAccounts, UsingPaniniState {
+    event Pause();
+    event Unpause();
+
+    PaniniState.Data private paniniState;
+    function PaniniController() public {
+        //initial state.
+        // starts with paused
+        paniniState = PaniniState.Data(true);        
+    }
+    
+    modifier __whenNotPaused() {
+        require(!paniniState.paused);
+        _;
+    }
+
+    modifier __whenPaused {
+        require(paniniState.paused);
+        _;
+    }
+
+    function pause() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
+        if(!paniniState.paused) {
+            paniniState.pause();
+            emit Pause();
+            success = true;            
+        }
+    }
+
+    function unPause() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
+        if(paniniState.paused) {
+            paniniState.unPause();
+            emit Unpause();
+            success = true;
+        }
+    }
+}
+
+
 
 //#########################################
 //###               CARDS               ###
@@ -103,7 +341,6 @@ library AnimalCardBase {
 
 
 }
-
 
 //kartlara ozel bazi farkliliklar katilabilir? 
 //Mesela ayni tip kart'in ozellikleri random degisebilir %5 gibi?
@@ -224,6 +461,25 @@ contract UsingCard is PaniniERC721Token{
             
 }
 
+//#########################################
+//###             GAMECORE              ###
+//#########################################
+
+library GameCore {
+
+    struct Data {
+  
+    }
+  
+}
+
+contract UsingGameCore is UsingCard, PaniniController {
+    using GameCore for GameCore.Data;
+
+}
+
+
+
 
 //#########################################
 //###            PLAYERS                ###
@@ -270,11 +526,10 @@ library Player {
 
         }
     }
-
     
 }
 
-contract UsingPlayer is UsingCard{
+contract UsingPlayer is UsingGameCore{
     using Player for Player.Data;
     mapping (address => Player.Data) players;
     mapping (uint256 => address) playerIdToAddress;
