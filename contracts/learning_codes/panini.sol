@@ -61,6 +61,7 @@ contract paniniTokenTest2 is PaniniERC721Token{
  
 }
 
+
 //#########################################
 //###    PANINI OWNERS - CONTROLLER     ###
 //#########################################
@@ -130,7 +131,7 @@ contract UsingRole{
 
 
 /**
- * The paniniDevAccount contract does this and that...
+ * The paniniDevAccounts contract does this and that...
  */
 contract PaniniDevAccounts is PaniniOwner, UsingRole {
     
@@ -302,6 +303,11 @@ contract Mutex {
     }
     
 }
+
+
+//#########################################
+//###           SHAREHOLDER             ###
+//#########################################
 
 
 library Shareholder {
@@ -547,6 +553,11 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
 
 }
 
+contract PaniniMarketController is PaniniDevAccounts, UsingPaniniState {
+
+
+}
+
 
 
 //#########################################
@@ -597,7 +608,7 @@ library AnimalCard {
         
         uint256 baseId; // arr index: 0: empty initialized and never used.
         uint256 tokenId; 
-        uint256 ownerId; //playerId
+        uint256 owner; 
     }
 }
 
@@ -704,6 +715,11 @@ contract UsingCard is PaniniERC721Token{
     }
             
 }
+
+
+//#########################################
+//###              PACKAGE              ###
+//#########################################
 
 
 library CardPackage {
@@ -850,6 +866,7 @@ contract UsingCardPackage is UsingCard {
          //initial price
         if(numberOfPackageCreated <= 100) {
             uint remaining = 100 - numberOfPackageCreated;
+            //to do: sadece presale icin olacak.
             if(_numberOfPackage < remaining) {
                 //TO DO: check owerflow?
                 price = _numberOfPackage * prices.initial;
@@ -869,6 +886,206 @@ contract UsingCardPackage is UsingCard {
 }
 
 
+//#########################################
+//###              MARKET               ###
+//#########################################
+
+library Auction {
+
+    struct Data {
+        address owner;
+        uint cardId;
+        uint256 createdTime;
+        uint256 startPrice;
+        uint256 endPrice;
+        uint256 duration; 
+
+    }
+  
+}
+
+
+contract PaniniMarket is PaniniERC721Token, PaniniMarketController{
+    using Auction for Auction.Data;
+
+    // Reference to contract tracking NFT ownership
+    PaniniERC721Token public nft;
+    // Values 0-10,000 map to 0%-100%
+    uint256 public ownerCut;
+
+    function PaniniMarket(address _nftAddress, uint256 _cut) public {
+        //TODO: control address + msg.sender
+        nft = A(_nftAddress);
+        ownerCut = _cut;
+    }
+
+
+
+}
+
+//TODO: bu contract'a balance yuklenmeli.
+contract UsingMarket is UsingCardPackage{
+    using Auction for Auction.Data;
+
+    emit CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
+    emit CancelAuction(address owner, uint256 _cardId);
+    emit Bid(address owner, address msg.sender, uint256 _cardId, uint256 currentPrice, uint256 cutof);
+    //cardId -> Auction
+    mapping (uint256 => Auction) auctions;
+
+    //butun auctionlari listelemek icin.
+    uint256 auctionCardIds[]; 
+    //cardId -> auctionCardIds index    
+    mapping (uint256 => uint256) auctionCardIdsIndex;
+
+    //bir kisiye ait auctionlari listelemek icin
+    //address -> cardId list
+    mapping (address => uint256[]) ownerOfAuctionCardIds; // bir kisiye ait auctionlari listesi
+    //cardId -> ownerOfAuctionCardIds index
+    mapping (uint256 => uint256) ownerOfAuctionCardIdsIndex; // bu kartin bu listedeki yeri.
+    
+
+    PaniniMarket market;
+
+    //TODO: control address + msg.sender
+    // bir kere set edilmeli? daha sonradan degistirilememeli?
+    function setMarket(address _marketAddress, uint256 _cut) public {
+        market = PaniniMarket(_marketAddress, _cut);
+    }
+
+    function getAddress() public view returns(address) {
+        require(address(market) != address(0));        
+        return address(market);
+    }
+
+    function getOwnerOfAuctionFromCardId(uint256 _cardId) public view returns(address) {
+        require (auctions[_cardId].cardId == 0 && _cardId != 0);
+        return auctions[_cardId].owner;;
+    }
+
+
+    function addAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) internal {
+
+        // daha once uretilmemis ve 0 ile uretilemesin.
+        require (auctions[_cardId].cardId == 0 && _cardId != 0);
+        
+        auctions[_cardId].owner = _owner;
+        auctions[_cardId].cardId =_cardId;
+        auctions[_cardId].createdTime = now;
+        auctions[_cardId].startPrice =_startPrice;
+        auctions[_cardId].endPrice =_endPrice;
+        auctions[_cardId].duration =_duration;        
+        auctionCardIds.push(_cardId);
+
+        uint256 ownerIndex = ownerOfAuctionCardIds.length;
+        ownerOfAuctionCardIds[_owner].push(_cardId);
+        ownerOfAuctionCardIdsIndex[_cardId] = ownerIndex;
+    }
+    
+    function removeAuction(address _owner, uint256 _cardId) internal {
+        //silinecek kardin sahibi kendisi olmali.
+        require( auctions[_cardId].owner == _owner);
+        delete auctions[_cardId];
+        //genel listeden cikar
+        uint256 index = auctionCardIdsIndex[_cardId];
+        uint256 lastIndex = auctionCardIds.length -1; //  auctions[_cardId].owner == _owner saglaniyor ise auctionCardIds.length > 0
+        uint256 lastCardId = auctionCardIds[lastCardIdIndex];
+        auctionCardIds[index] = lastCardId;
+        auctionCardIds[lastIndex] = 0;
+        auctionCardIds.length--;
+        auctionCardIdsIndex[_cardId] = 0;
+        auctionCardIdsIndex[lastCardId] = index;
+        
+        //kisinin listesinden cikar.
+        index = ownerOfAuctionCardIdsIndex[_cardId];
+        lastIndex = ownerOfAuctionCardIds[_owner].length -1; //  auctions[_cardId].owner == _owner saglaniyor ise ownerOfAuctionCardIdsIndex.length > 0
+        lastCardId = ownerOfAuctionCardIds[_owner][lastCardIdIndex];
+        ownerOfAuctionCardIds[_owner][index] = lastCardId;
+        ownerOfAuctionCardIds[_owner][lastIndex] = 0;
+        ownerOfAuctionCardIds[_owner].length--;
+        ownerOfAuctionCardIdsIndex[_cardId] = 0;
+        ownerOfAuctionCardIdsIndex[lastCardId] = index;
+    }
+
+    function createAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) public {
+        addAuction(_owner, _cardId, _startPrice, _endPrice, _duration);
+        //TODO: tranfer yapilacak. 
+        // bu metodu cagiranda yapilacak(yeri burasi degil.). markete approve yapacak.
+    }
+
+    function cancelAuction(address _owner, uint256 _cardId) public {
+        removeAuction(_owner, _cardId);
+        //TODO: tranfer yapilacak. 
+        // bu metodu cagiranda yapilacak(yeri burasi degil.). approve iptal edecek.
+    }
+
+    function bid(address _bidder, uint256 _cardId, uint256 _amount) public {
+        //TODO: diger kontroller.
+        // 
+        Auction auction = auctions[_cardId];
+        removeAuction(_owner, _cardId); 
+
+        //TODO: tranfer yapilacak. 
+        // 1. asama: ilk once contract kendine transfer yapacak.
+        safeTransferFrom( auction.owner, getAddress(), _cardId);
+        // 2. asama: contract bidder'a approve verecek.
+        approve(_bidder, _cardId);
+        // 3. asama: bu metodu cagiranda yapilacak(yeri burasi degil.). kendine transfer yapacak.
+
+    }
+
+    function computeCurrentPrice(uint256 _cardId) public returns(uint256) {
+        Auction auction = auctions[_cardId];
+        //TODO: control auction is exists + method.
+        _computeCurrentPrice(auction);
+    }
+
+
+    //TODO: this code from crypto kitties with a small change.
+    // recheck.
+    function _computeCurrentPrice (Auction _auction) internal returns(uint256) {
+        int256 secondsPassed = now - _auction.createdTime;
+        int256 startPrice = int256(_auction.startPrice);
+        int256 endPrice = int256(_auction.endPrice);
+        int256 duration = int256(_auction.duration);
+        if (secondsPassed >= duration) {
+            return endPrice;
+        } else {
+            // Starting price can be higher than ending price (and often is!), so
+            // this delta can be negative.
+            int256 totalPriceChange = endPrice - startPrice;
+
+            // This multiplication can't overflow, _secondsPassed will easily fit within
+            // 64-bits, and totalPriceChange will easily fit within 128-bits, their product
+            // will always fit within 256-bits.
+            int256 currentPriceChange = totalPriceChange * secondsPassed / duration;
+
+            // currentPriceChange can be negative, but if so, will have a magnitude
+            // less that _startingPrice. Thus, this result will always end up positive.
+            int256 currentPrice = startPrice + currentPriceChange;
+
+            return uint256(currentPrice);
+        }
+
+    }
+
+    //TODO: this code from crypto kitties with a small change.
+    // recheck.
+    function computeCut(uint256 _price) public view returns (uint256) {
+        // NOTE: We don't use SafeMath (or similar) in this function because
+        //  all of our entry functions carefully cap the maximum values for
+        //  currency (at 128-bits), and ownerCut <= 10000 (see the require()
+        //  statement in the ClockAuction constructor). The result of this
+        //  function is always guaranteed to be <= _price.
+        return _price * ownerCut / 10000;
+    }
+    
+
+    //TODO: function: calculate bid amount
+    //TODO: function: compute cutof.
+
+}
+
 
 //#########################################
 //###             GAMECORE              ###
@@ -882,11 +1099,10 @@ library GameCore {
   
 }
 
-contract UsingGameCore is , PaniniController {
+contract UsingGameCore PaniniController {
     using GameCore for GameCore.Data;
 
 }
-
 
 
 
@@ -897,6 +1113,7 @@ library Player {
 
     struct Data {
         uint256 id; // adress olabilir, yada id kalsın. bakarız.
+        address owner; // address olarak degistirildi.
         string name;
         uint256 numberOfStars;
         //baseId -> cardIndex-tokenId
@@ -905,23 +1122,34 @@ library Player {
         mapping(uint256 => uint256) animalCardsIndex;    
     }
     
-    function hasCard(Data storage self, uint256 _baseId ) public view returns(bool) {
-        if(self.animalCards[_baseId].length == 0) {
-            return false;
+
+    // require carId != 0;
+    // oyuncu card'a sahip mi.
+    function hasCard(Data storage self, uint256 _baseId, uint256 _cardId ) public view returns(bool _hasCard) {
+        require (_cardId != 0 ); // !hasCard(...) _cardId = 0 ile cagrilirsa true dondurmesin. Bunun yerine islemi gerceklestirmesin.        
+        if(self.animalCards[_baseId].length != 0) {
+            uint256 cardIndex = self.animalCardsIndex[_cardId];
+            //bu kartin sahibi mi;                
+            if(self.animalCards[_baseId][cardIndex] == _cardId) {
+                _hasCard = true;
+            }
         }
-        return true;                
     }
     
 
-    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
-        uint256 cardId = _cardId;
-        self.animalCardsIndex[cardId] = self.animalCards[_baseId].length;
-        self.animalCards[_baseId].push(cardId); 
+    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal returns(bool success){
+        //bu card var ekli degilse ve cardId 0 degil ise.
+        if(!hasCard(self, _baseId, _cardId)) {
+            self.animalCardsIndex[_cardId] = self.animalCards[_baseId].length;
+            self.animalCards[_baseId].push(_cardId); 
+            success = true;
+        } 
     }
 
-    function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
-        if(hasCard(self, _baseId)) {        
-            uint256 cardIndex = self.animalCardsIndex[_cardId];
+    function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal returns(bool success) {
+        //listesinde bu tip bir kart var mi.
+        if(hasCard(self, _baseId, _cardId)) { 
+
             //TODO CONTROL lValue is not (0 -1)
             uint256 lastCardIndex = self.animalCards[_baseId].length - 1;
             uint256 lastCard = self.animalCards[_baseId][lastCardIndex];
@@ -932,17 +1160,20 @@ library Player {
             self.animalCards[_baseId].length--;
             self.animalCardsIndex[_cardId] = 0;
             self.animalCardsIndex[lastCard] = cardIndex;
+            success = true;
 
         }
     }
     
 }
 
-
-contract UsingPlayer is UsingGameCore{
+//TODO: approve'du vs bunun gibi metodlara bir el atilacak.
+// sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
+//   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
+//  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
+contract UsingPlayer is UsingGameCore, UsingMarket{
     using Player for Player.Data;
     mapping (address => Player.Data) players;
-    mapping (uint256 => address) playerIdToAddress;
     
     uint256 numberOfPlayer;
     
@@ -963,6 +1194,7 @@ contract UsingPlayer is UsingGameCore{
         require(players[msg.sender].id == 0);
         numberOfPlayer = numberOfPlayer + 1;
         players[msg.sender].id = numberOfPlayer; 
+        players[msg.sender].owner = msg.sender;
         players[msg.sender].name = _name;
         //5x card 
         addRandomCardToPlayer(msg.sender);
@@ -976,19 +1208,43 @@ contract UsingPlayer is UsingGameCore{
         return players[msg.sender].name;
     }
 
-    function addCardToPlayer(address _address, uint256 _cardId) internal {
+    //checks-1: is card exists.
+    //checks-2: is address is player
+    function addCardToPlayer(address _address, uint256 _cardId) internal returns(bool success){
         isPlayer(_address);
         if(exists(_cardId)) {
             uint256 baseId = animalCards[_cardId];
-            addCardToPlayer(_address, _cardId, baseId);
+            success = addCardToPlayer(_address, _cardId, baseId);
         }        
     }
     
-    function addCardToPlayer(address _address, uint256 _cardId, uint256 _baseId) internal {
-        players[_address].addCard(_baseId, _cardId);
-        animalCards[_cardId].ownerId = players[_address].id;        
-        players[_address].numberOfStars = players[_address].numberOfStars + 1; // simdilik kart sayisi olsun. 
+    function addCardToPlayer(address _address, uint256 _cardId, uint256 _baseId) internal returns(bool success) {
+        if (players[_address].addCard(_baseId, _cardId)) {
+            animalCards[_cardId].owner = players[_address].owner;        
+            players[_address].numberOfStars = players[_address].numberOfStars + 1; // simdilik kart sayisi olsun.             
+            success = true;       
+        }
     }
+
+
+    //checks-1: is card exists.
+    //checks-2: is address is player
+    function removeCardFromPlayer(address _address, uint256 _cardId) internal returns(bool success) {
+        isPlayer(_address);
+        if(exists(_cardId)) {
+            uint256 baseId = animalCards[_cardId];
+            success = removeCardFromPlayer(_address, _cardId, baseId);
+        }        
+    }
+    
+    function removeCardFromPlayer(address _address, uint256 _cardId, uint256 _baseId) internal returns(bool success) {
+        if(players[_address].removeCard(_baseId, _cardId)) {
+            animalCards[_cardId].owner = players[_address].owner;        
+            players[_address].numberOfStars = players[_address].numberOfStars - 1; // simdilik kart sayisi olsun.      
+            success = true;       
+        }
+    }
+
 
     function addRandomCardToPlayer(address _address) internal {
         isPlayer(_address);
@@ -1003,7 +1259,7 @@ contract UsingPlayer is UsingGameCore{
         mutex.enter();
 
         uint256 price = computePriceOfPackage(_numberOfPackage);
-        require (price < msg.value);
+        require (price == msg.value);
         distributeBalance(msg.value);        
 
         createPackage(msg.sender);
@@ -1013,7 +1269,7 @@ contract UsingPlayer is UsingGameCore{
 
     function openPackage(uint256 _packageId) __isPlayer __whenNotPresaled public {
         //paket'i var ise 
-        if(isOwnerOfPackage(_packageId)) {
+        if(isOwnerOfPackage(_packageId) /*TODO: && zamani gelmis mi? */) {
             CardPackage.Data package = createdPackages[_packageId];
             //remove first
             removePackage(_packageId);
@@ -1026,13 +1282,97 @@ contract UsingPlayer is UsingGameCore{
         }       
     }
 
+    //###################
+    //     market
+    //###################
 
+    //TODO: player'in datasindan silme + guvenlik.
+    function createAuction(uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) __isPlayer public {
+
+        uint256 baseId = animalCards[_cardId].baseId;        
+        players[msg.sender].removeCard(baseId, _cardId);        
+
+        //TODO: numberOfStars icin metod yazilacak.
+        players[msg.sender].numberOfStars = players[_address].numberOfStars - 1;
+
+        //TODO: sorun olur mu bu sekilde? guvenlik acigi var mi kontrol etmek lazim.       
+        //yetkiyi contract'a verdi. 
+        //bid isleminde contract once kendine transfer edecek. (nft ile)
+        //daha sonra yetkiyi bid islemini yapana verecek.
+        //bid islemini yapan da en son tranferi kendine yaparak tamamlayacak.
+        approve(market.getAddress(), _cardId);
+        //card sahibi contract olmali.
+        animalCards[_cardId].owner = market.getAddress();  
+
+        super.createAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration);
+        CreateAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration );
+
+    }
+
+    //TODO: player'in datasindan ekleme + guvenlik.
+    function cancelAuction(uint256 _cardId) __isPlayer public {
+
+        uint256 baseId = animalCards[_cardId].baseId;
+        players[msg.sender].addCard(baseId, _cardId);        
+        animalCards[_cardId].owner = msg.sender;          
+
+        //TODO: numberOfStars icin metod yazilacak.
+        players[msg.sender].numberOfStars = players[_address].numberOfStars + 1;
+
+        super.cancelAuction(msg.sender, _cardId);
+
+        clearApproval(msg.sender, _cardId);
+        CancelAuction(msg.sender, _cardId);
+    }
+
+    //TODO: player'in datasina ekleme + guvenlik.
+    function bid(uint256 _cardId, uint256 _amount) __isPlayer public {
+        mutex.enter();
+        uint256 currentPrice = market.computeCurrentPrice(_cardId);
+        require (currentPrice == msg.value);
+
+        uint256 baseId = animalCards[_cardId].baseId;
+        players[msg.sender].addCard(baseId, _cardId);        
+        animalCards[_cardId].owner = msg.sender;          
+        
+        //TODO: numberOfStars icin metod yazilacak.
+        players[msg.sender].numberOfStars = players[_address].numberOfStars + 1;
+       
+        super.bid(msg.sender, _cardId _amount);
+
+        safeTransferFrom( market.getAddress(), msg.sender, _cardId);
+
+        //TODO: tranfer yapilacak. 
+        //compute current price
+        //compute cut of 
+        uint256 cutOf = market.computeCut(currentPrice);
+        // transfer cut of to contract
+        distributeBalance(cutof);        
+
+        currentPrice -= cutof;
+        //transfer owner to currentPrice
+        address owner = market.getOwnerOfAuctionFromCardId(_cardId);
+        if(!msg.sender.call.value(currentPrice)()) { throw;}
+        emit Bid(owner, msg.sender, _cardId, currentPrice, cutof);
+        mutex.left();
+    }
+    
     function balanceOf(address _owner) public view returns (uint256) {
         return super.balanceOf(_owner);
     }
 
     function approve(address _to, uint256 _cardId) public {
+        // eger auction'da ise token approve yapamamali.
+        // card sahibini kontrol etmek yeterli.
+        players[msg.sender].hasCard(baseId, cardId);        
         super.approve(_to, _cardId);
+    }
+
+    function clearApproval(address _owner, uint256 _cardId) internal {
+        // eger auction'da ise token clear approve yapamamali.
+        // card sahibini kontrol etmek yeterli.
+        players[msg.sender].hasCard(baseId, cardId);        
+        super.clearApproval(_owner, _cardId);
     }
 
     function getApproved(uint256 _cardId) public view returns (address) {
@@ -1051,7 +1391,7 @@ contract UsingPlayer is UsingGameCore{
     function safeTransferFrom(address _from, address _to, uint256 _cardId, bytes _data) public {
         super.safeTransferFrom(_from, _to, _cardId, _data);
         //cart sahibini degistir.
-        animalCards[_cardId].ownerId = players[_to].id;
+        animalCards[_cardId].owner = players[_to].owner;
         //buradaki tasima islemleri.
         // remove card from previous player
         // add card to other player
@@ -1074,7 +1414,7 @@ contract UsingPlayer is UsingGameCore{
             name = animalCardBase[baseId].name;                    
             //cont = players[msg.sender].hasCard(baseId);
             //kartin sahibi mi?
-            if( players[msg.sender].id == animalCards[_cardId].ownerId) {
+            if( msg.sender == animalCards[_cardId].owner) {
                 count = players[msg.sender].animalCards[baseId].length;           
 
             } else {
@@ -1097,6 +1437,9 @@ contract UsingPlayer is UsingGameCore{
         }
         return cards;
     }
+
+    //TODO: numberOfStars calculation function.
+
 
     //fallback
     function () payable {}
