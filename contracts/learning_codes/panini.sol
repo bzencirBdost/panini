@@ -80,18 +80,18 @@ contract PaniniOwner{
         _;
     }
 
-    function isOwner() view internal returns(bool res){
-        if(msg.sender == owner) {
-            res = true;
-        }
-    }
-
     modifier __onlyOwner() {
         require(msg.sender == owner);
         _;
     }
 
     
+    function isOwner() view internal returns(bool res){
+        if(msg.sender == owner) {
+            res = true;
+        }
+    }
+
     function transferOwnership(address newOwner) __onlyOwner public {
         pendingOwner = newOwner;
     }
@@ -102,7 +102,7 @@ contract PaniniOwner{
         pendingOwner = address(0);
     }
 
-    function kill() {
+    function kill() public{
         if (msg.sender == owner) selfdestruct(owner);
     }
 }
@@ -264,6 +264,7 @@ library PaniniState {
     struct Data {
         bool paused;
         bool presaled;
+        uint256 presaledEndDate;
     }
 
     function pause(PaniniState.Data self) pure internal {
@@ -286,18 +287,19 @@ library PaniniState {
 
 contract UsingPaniniState{
     using PaniniState for PaniniState.Data;
+    PaniniState.Data paniniState;
 
 }
 
 contract Mutex {
     mapping (address => bool) mutex;
     
-    function enter() returns() public {
+    function enter() public view {
         if ( mutex[msg.sender] == true) { throw; }
         mutex[msg.sender] == true;
     }
 
-    function left() returns() public {
+    function left() public {
         //false yapmak da yeterli mi?
         delete mutex[msg.sender];
     }
@@ -357,7 +359,7 @@ contract UsingShareholder {
         addShareHolder(shareholderAddress2, 10);
     }
 
-    function isShareHolder(address _address) internal returns(bool) {
+    function isShareHolder(address _address) public view returns(bool) {
         if(shareholderData[_address].owner != _address) {
             return true;
         }
@@ -409,7 +411,8 @@ contract UsingShareholder {
         mutex.left();        
     }
     
-    function withdrawOwnerBalance() internal payable {
+    //TODO: bunun cagrildigi yer payable olmali.
+    function withdrawOwnerBalance() internal {
         mutex.enter();
         uint256 balance = ownerBalance;
         ownerBalance = 0;
@@ -446,24 +449,19 @@ contract UsingShareholder {
                 uint256 lastIndex = shareholders.length - 1; //bu scope'ta her zaman > 0                
                 address lastAddress = shareholders[lastIndex];
 
-                Shareholders[index] = lastAddress;
-                Shareholders[lastIndex] = address(0);
-                Shareholders.length--;
+                shareholders[index] = lastAddress;
+                shareholders[lastIndex] = address(0);
+                shareholders.length--;
 
                 shareHoldersIndex[owner] = 0;
                 shareHoldersIndex[lastAddress] = index;
             } else {
                 //owner vs degistir.
-                mapping (address => Shareholder.Data) shareholderData;
-
-                address[] shareholders;
-                mapping (address => uint256) shareHoldersIndex;
-
                 shareholderData[pendingOwner].owner = pendingOwner;
                 shareholderData[pendingOwner].balance = shareholderData[owner].balance;               
                 shareholderData[pendingOwner].percentage = shareholderData[owner].percentage;
 
-                uint256 index = shareHoldersIndex[owner];
+                index = shareHoldersIndex[owner];
                 shareholders[index] = pendingOwner;
             }
             
@@ -474,7 +472,7 @@ contract UsingShareholder {
     }
 
 
-    function () public payeble {
+    function () public payable {
         
     }
     
@@ -487,11 +485,11 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
     event Presaled();
     event UnPresaled();
 
-    PaniniState.Data private paniniState;
     function PaniniController() public {
         //initial state.
         // starts with paused
-        paniniState = PaniniState.Data(true, true);        
+        //3. parametre degistirilecek. tarih girilecek sonra.  
+        paniniState = PaniniState.Data(true, true, 1231512);       
         mutex = new Mutex();
     }
     
@@ -500,7 +498,7 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
         _;
     }
 
-    modifier __whenPaused {
+    modifier __whenPaused() {
         require(paniniState.paused);
         _;
     }
@@ -510,7 +508,7 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
         _;
     }
 
-    modifier __whenPresaled {
+    modifier __whenPresaled() {
         require(paniniState.presaled);
         _;
     }
@@ -542,22 +540,16 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
     function unPresale() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
         if(paniniState.presaled) {
             paniniState.unPresale();
-            emit UnPresale();
+            emit UnPresaled();
             success = true;
         }
     }
 
-    function withdrawBalance() __OnlyForThisRoles1(true, Role.RoleType.CFO) public payeble returns (bool success) {
+    function withdrawBalance() __OnlyForThisRoles1(true, Role.RoleType.CFO) public payable {
         withdrawOwnerBalance();
     }
 
 }
-
-contract PaniniMarketController is PaniniDevAccounts, UsingPaniniState {
-
-
-}
-
 
 
 //#########################################
@@ -608,11 +600,11 @@ library AnimalCard {
         
         uint256 baseId; // arr index: 0: empty initialized and never used.
         uint256 tokenId; 
-        uint256 owner; 
+        address owner; 
     }
 }
 
-contract UsingCard is PaniniERC721Token{
+contract UsingCard is PaniniERC721Token, PaniniController {
 
     using AnimalCardBase for AnimalCardBase.Data;
     using AnimalCard for AnimalCard.Data;
@@ -803,13 +795,14 @@ contract UsingCardPackage is UsingCard {
 
     }
 
-    function packageExists(uint256 _packageId) public returns(bool packageExists) {        
+    function packageExists(uint256 _packageId) public view returns(bool) {        
         if(createdPackages[_packageId].id != 0) {
-            packageExists = true;
+            return true;
         }
+        return false;
     }
 
-    function isOwnerOfPackage(uint256 _packageId) public returns(bool isOwner) {
+    function isOwnerOfPackage(uint256 _packageId) public view returns(bool isOwner) {
         if(packageExists(_packageId)) {
             if(msg.sender == createdPackages[_packageId].owner) {
                 isOwner = true;
@@ -862,25 +855,26 @@ contract UsingCardPackage is UsingCard {
     
 
     //fiyatlar sonradan degistirilemesin?
-    function computePriceOfPackage(uint _numberOfPackage) public returns(uint256 price) {
+    function computePriceOfPackage(uint _numberOfPackage) public view returns(uint256 price) {
          //initial price
-        if(numberOfPackageCreated <= 100) {
+        if(numberOfPackageCreated <= 100 && now < paniniState.presaledEndDate) {
             uint remaining = 100 - numberOfPackageCreated;
             //to do: sadece presale icin olacak.
-            if(_numberOfPackage < remaining) {
+            if(_numberOfPackage < remaining ) {
                 //TO DO: check owerflow?
                 price = _numberOfPackage * prices.initial;
             } else {
                 price = (remaining * prices.initial) + ((_numberOfPackage - remaining) * prices.normal);
             } 
-        } 
+
+        //normal price
+        } else {
+            price = _numberOfPackage * prices.normal;
+        }
         //TO DO: ozel gun ise fiyat belirle
         //else if .. {}
 
-        //normal price
-        else {
-            price = _numberOfPackage * prices.normal;
-        }
+        
     }
     
 }
@@ -894,7 +888,7 @@ library Auction {
 
     struct Data {
         address owner;
-        uint cardId;
+        uint256 cardId;
         uint256 createdTime;
         uint256 startPrice;
         uint256 endPrice;
@@ -905,36 +899,39 @@ library Auction {
 }
 
 
-contract PaniniMarket is PaniniERC721Token, PaniniMarketController{
+contract PaniniMarket {
     using Auction for Auction.Data;
 
     // Reference to contract tracking NFT ownership
-    PaniniERC721Token public nft;
+    PaniniERC721Token public nft; // panini
     // Values 0-10,000 map to 0%-100%
     uint256 public ownerCut;
 
     function PaniniMarket(address _nftAddress, uint256 _cut) public {
         //TODO: control address + msg.sender
-        nft = A(_nftAddress);
+        nft = PaniniERC721Token(_nftAddress);
         ownerCut = _cut;
     }
-
-
+    
+    function getOwnerCut() public view returns(uint256) {
+        return ownerCut;
+    }
 
 }
 
 //TODO: bu contract'a balance yuklenmeli.
-contract UsingMarket is UsingCardPackage{
+contract UsingPaniniMarket is UsingCardPackage{
     using Auction for Auction.Data;
 
-    emit CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
-    emit CancelAuction(address owner, uint256 _cardId);
-    emit Bid(address owner, address msg.sender, uint256 _cardId, uint256 currentPrice, uint256 cutof);
+    event CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
+    event CancelAuction(address owner, uint256 _cardId);
+    event Bid(address owner, address sender, uint256 _cardId, uint256 currentPrice, uint256 cutof);
+    
     //cardId -> Auction
-    mapping (uint256 => Auction) auctions;
+    mapping (uint256 => Auction.Data) auctions;
 
     //butun auctionlari listelemek icin.
-    uint256 auctionCardIds[]; 
+    uint256[] auctionCardIds; 
     //cardId -> auctionCardIds index    
     mapping (uint256 => uint256) auctionCardIdsIndex;
 
@@ -949,8 +946,8 @@ contract UsingMarket is UsingCardPackage{
 
     //TODO: control address + msg.sender
     // bir kere set edilmeli? daha sonradan degistirilememeli?
-    function setMarket(address _marketAddress, uint256 _cut) public {
-        market = PaniniMarket(_marketAddress, _cut);
+    function setMarket(address _marketAddress) public {
+        market = PaniniMarket(_marketAddress);
     }
 
     function getAddress() public view returns(address) {
@@ -960,7 +957,7 @@ contract UsingMarket is UsingCardPackage{
 
     function getOwnerOfAuctionFromCardId(uint256 _cardId) public view returns(address) {
         require (auctions[_cardId].cardId == 0 && _cardId != 0);
-        return auctions[_cardId].owner;;
+        return auctions[_cardId].owner;
     }
 
 
@@ -977,7 +974,7 @@ contract UsingMarket is UsingCardPackage{
         auctions[_cardId].duration =_duration;        
         auctionCardIds.push(_cardId);
 
-        uint256 ownerIndex = ownerOfAuctionCardIds.length;
+        uint256 ownerIndex = ownerOfAuctionCardIds[_owner].length;
         ownerOfAuctionCardIds[_owner].push(_cardId);
         ownerOfAuctionCardIdsIndex[_cardId] = ownerIndex;
     }
@@ -989,7 +986,7 @@ contract UsingMarket is UsingCardPackage{
         //genel listeden cikar
         uint256 index = auctionCardIdsIndex[_cardId];
         uint256 lastIndex = auctionCardIds.length -1; //  auctions[_cardId].owner == _owner saglaniyor ise auctionCardIds.length > 0
-        uint256 lastCardId = auctionCardIds[lastCardIdIndex];
+        uint256 lastCardId = auctionCardIds[lastIndex];
         auctionCardIds[index] = lastCardId;
         auctionCardIds[lastIndex] = 0;
         auctionCardIds.length--;
@@ -999,7 +996,7 @@ contract UsingMarket is UsingCardPackage{
         //kisinin listesinden cikar.
         index = ownerOfAuctionCardIdsIndex[_cardId];
         lastIndex = ownerOfAuctionCardIds[_owner].length -1; //  auctions[_cardId].owner == _owner saglaniyor ise ownerOfAuctionCardIdsIndex.length > 0
-        lastCardId = ownerOfAuctionCardIds[_owner][lastCardIdIndex];
+        lastCardId = ownerOfAuctionCardIds[_owner][lastIndex];
         ownerOfAuctionCardIds[_owner][index] = lastCardId;
         ownerOfAuctionCardIds[_owner][lastIndex] = 0;
         ownerOfAuctionCardIds[_owner].length--;
@@ -1022,34 +1019,27 @@ contract UsingMarket is UsingCardPackage{
     function bid(address _bidder, uint256 _cardId, uint256 _amount) public {
         //TODO: diger kontroller.
         // 
-        Auction auction = auctions[_cardId];
-        removeAuction(_owner, _cardId); 
+        address owner = auctions[_cardId].owner;
+        removeAuction(owner, _cardId); 
 
         //TODO: tranfer yapilacak. 
         // 1. asama: ilk once contract kendine transfer yapacak.
-        safeTransferFrom( auction.owner, getAddress(), _cardId);
+        safeTransferFrom( owner, getAddress(), _cardId);
         // 2. asama: contract bidder'a approve verecek.
         approve(_bidder, _cardId);
         // 3. asama: bu metodu cagiranda yapilacak(yeri burasi degil.). kendine transfer yapacak.
 
     }
 
-    function computeCurrentPrice(uint256 _cardId) public returns(uint256) {
-        Auction auction = auctions[_cardId];
+    function computeCurrentPrice(uint256 _cardId) public view returns(uint256) {
         //TODO: control auction is exists + method.
-        _computeCurrentPrice(auction);
-    }
 
-
-    //TODO: this code from crypto kitties with a small change.
-    // recheck.
-    function _computeCurrentPrice (Auction _auction) internal returns(uint256) {
-        int256 secondsPassed = now - _auction.createdTime;
-        int256 startPrice = int256(_auction.startPrice);
-        int256 endPrice = int256(_auction.endPrice);
-        int256 duration = int256(_auction.duration);
+        int256 secondsPassed = int256(now) - int256(auctions[_cardId].createdTime);
+        int256 startPrice = int256(auctions[_cardId].startPrice);
+        int256 endPrice = int256(auctions[_cardId].endPrice);
+        int256 duration = int256(auctions[_cardId].duration);
         if (secondsPassed >= duration) {
-            return endPrice;
+            return uint(endPrice);
         } else {
             // Starting price can be higher than ending price (and often is!), so
             // this delta can be negative.
@@ -1069,6 +1059,7 @@ contract UsingMarket is UsingCardPackage{
 
     }
 
+
     //TODO: this code from crypto kitties with a small change.
     // recheck.
     function computeCut(uint256 _price) public view returns (uint256) {
@@ -1077,7 +1068,8 @@ contract UsingMarket is UsingCardPackage{
         //  currency (at 128-bits), and ownerCut <= 10000 (see the require()
         //  statement in the ClockAuction constructor). The result of this
         //  function is always guaranteed to be <= _price.
-        return _price * ownerCut / 10000;
+        return _price * market.getOwnerCut() / 10000;
+        
     }
     
 
@@ -1085,25 +1077,6 @@ contract UsingMarket is UsingCardPackage{
     //TODO: function: compute cutof.
 
 }
-
-
-//#########################################
-//###             GAMECORE              ###
-//#########################################
-
-library GameCore {
-
-    struct Data {
-  
-    }
-  
-}
-
-contract UsingGameCore PaniniController {
-    using GameCore for GameCore.Data;
-
-}
-
 
 
 //#########################################
@@ -1151,6 +1124,7 @@ library Player {
         if(hasCard(self, _baseId, _cardId)) { 
 
             //TODO CONTROL lValue is not (0 -1)
+            uint256 cardIndex = self.animalCardsIndex[_cardId];
             uint256 lastCardIndex = self.animalCards[_baseId].length - 1;
             uint256 lastCard = self.animalCards[_baseId][lastCardIndex];
 
@@ -1171,7 +1145,7 @@ library Player {
 // sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
 //   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
 //  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
-contract UsingPlayer is UsingGameCore, UsingMarket{
+contract UsingPlayer is UsingPaniniMarket{
     using Player for Player.Data;
     mapping (address => Player.Data) players;
     
@@ -1181,7 +1155,7 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
         numberOfPlayer = 0;
     }
     
-    modifier __isPlayer {
+    modifier __isPlayer() {
         require(players[msg.sender].id != 0);
         _;
     }
@@ -1213,7 +1187,7 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
     function addCardToPlayer(address _address, uint256 _cardId) internal returns(bool success){
         isPlayer(_address);
         if(exists(_cardId)) {
-            uint256 baseId = animalCards[_cardId];
+            uint256 baseId = animalCards[_cardId].baseId;
             success = addCardToPlayer(_address, _cardId, baseId);
         }        
     }
@@ -1232,7 +1206,7 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
     function removeCardFromPlayer(address _address, uint256 _cardId) internal returns(bool success) {
         isPlayer(_address);
         if(exists(_cardId)) {
-            uint256 baseId = animalCards[_cardId];
+            uint256 baseId = animalCards[_cardId].baseId;
             success = removeCardFromPlayer(_address, _cardId, baseId);
         }        
     }
@@ -1255,7 +1229,7 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
     }
 
     //bu method value degeri girilerek web3 tarafinda cagrilacak.
-    public buyPackage(uint256 _numberOfPackage) __isPlayer public payeble {
+    function buyPackage(uint256 _numberOfPackage) __isPlayer public payable {
         mutex.enter();
 
         uint256 price = computePriceOfPackage(_numberOfPackage);
@@ -1270,7 +1244,7 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
     function openPackage(uint256 _packageId) __isPlayer __whenNotPresaled public {
         //paket'i var ise 
         if(isOwnerOfPackage(_packageId) /*TODO: && zamani gelmis mi? */) {
-            CardPackage.Data package = createdPackages[_packageId];
+            CardPackage.Data storage package = createdPackages[_packageId];
             //remove first
             removePackage(_packageId);
 
@@ -1293,19 +1267,20 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
         players[msg.sender].removeCard(baseId, _cardId);        
 
         //TODO: numberOfStars icin metod yazilacak.
-        players[msg.sender].numberOfStars = players[_address].numberOfStars - 1;
+        players[msg.sender].numberOfStars = players[msg.sender].numberOfStars - 1;
 
         //TODO: sorun olur mu bu sekilde? guvenlik acigi var mi kontrol etmek lazim.       
         //yetkiyi contract'a verdi. 
         //bid isleminde contract once kendine transfer edecek. (nft ile)
         //daha sonra yetkiyi bid islemini yapana verecek.
         //bid islemini yapan da en son tranferi kendine yaparak tamamlayacak.
-        approve(market.getAddress(), _cardId);
+        //TODO: getAddress -> returns panini address
+        approve(address(this), _cardId);
         //card sahibi contract olmali.
-        animalCards[_cardId].owner = market.getAddress();  
+        animalCards[_cardId].owner = address(this);
 
         super.createAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration);
-        CreateAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration );
+        emit CreateAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration );
 
     }
 
@@ -1317,18 +1292,19 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
         animalCards[_cardId].owner = msg.sender;          
 
         //TODO: numberOfStars icin metod yazilacak.
-        players[msg.sender].numberOfStars = players[_address].numberOfStars + 1;
+        players[msg.sender].numberOfStars = players[msg.sender].numberOfStars + 1;
 
         super.cancelAuction(msg.sender, _cardId);
 
         clearApproval(msg.sender, _cardId);
-        CancelAuction(msg.sender, _cardId);
+        emit CancelAuction(msg.sender, _cardId);
     }
 
     //TODO: player'in datasina ekleme + guvenlik.
-    function bid(uint256 _cardId, uint256 _amount) __isPlayer public {
+    function bid(uint256 _cardId, uint256 _amount) __isPlayer public payable{
         mutex.enter();
-        uint256 currentPrice = market.computeCurrentPrice(_cardId);
+
+        uint256 currentPrice = computeCurrentPrice(_cardId);
         require (currentPrice == msg.value);
 
         uint256 baseId = animalCards[_cardId].baseId;
@@ -1336,24 +1312,24 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
         animalCards[_cardId].owner = msg.sender;          
         
         //TODO: numberOfStars icin metod yazilacak.
-        players[msg.sender].numberOfStars = players[_address].numberOfStars + 1;
+        players[msg.sender].numberOfStars = players[msg.sender].numberOfStars + 1;
        
-        super.bid(msg.sender, _cardId _amount);
+        super.bid(msg.sender, _cardId, _amount);
 
-        safeTransferFrom( market.getAddress(), msg.sender, _cardId);
+        safeTransferFrom( address(this), msg.sender, _cardId);
 
         //TODO: tranfer yapilacak. 
         //compute current price
         //compute cut of 
-        uint256 cutOf = market.computeCut(currentPrice);
+        uint256 cutOf = computeCut(currentPrice);
         // transfer cut of to contract
-        distributeBalance(cutof);        
+        distributeBalance(cutOf);        
 
-        currentPrice -= cutof;
+        currentPrice -= cutOf;
         //transfer owner to currentPrice
-        address owner = market.getOwnerOfAuctionFromCardId(_cardId);
-        if(!msg.sender.call.value(currentPrice)()) { throw;}
-        emit Bid(owner, msg.sender, _cardId, currentPrice, cutof);
+        address owner = getOwnerOfAuctionFromCardId(_cardId);
+        if(!owner.call.value(currentPrice)()) { throw;}
+        emit Bid(owner, msg.sender, _cardId, currentPrice, cutOf);
         mutex.left();
     }
     
@@ -1364,14 +1340,16 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
     function approve(address _to, uint256 _cardId) public {
         // eger auction'da ise token approve yapamamali.
         // card sahibini kontrol etmek yeterli.
-        players[msg.sender].hasCard(baseId, cardId);        
+        uint256 baseId = animalCards[_cardId].baseId;
+        players[msg.sender].hasCard(baseId, _cardId);        
         super.approve(_to, _cardId);
     }
 
     function clearApproval(address _owner, uint256 _cardId) internal {
         // eger auction'da ise token clear approve yapamamali.
         // card sahibini kontrol etmek yeterli.
-        players[msg.sender].hasCard(baseId, cardId);        
+        uint256 baseId = animalCards[_cardId].baseId;
+        players[msg.sender].hasCard(baseId, _cardId);        
         super.clearApproval(_owner, _cardId);
     }
 
@@ -1442,7 +1420,7 @@ contract UsingPlayer is UsingGameCore, UsingMarket{
 
 
     //fallback
-    function () payable {}
+    function () public payable {}
     
 }
 
