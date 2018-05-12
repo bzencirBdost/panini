@@ -1,8 +1,204 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 //import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
 //not: yukaridaki token ozelliklerini kod icerisinde sagliyoruz. Bu yuzden basic gas verimi icin tercih edildi.
-import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721BasicToken.sol";
+//import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721BasicToken.sol";
+//importing zaman aliyor. codu iceri tasidim.
+
+library AddressUtils {
+  function isContract(address addr) internal view returns (bool) {
+    uint256 size;
+    assembly { size := extcodesize(addr) }  // solium-disable-line security/no-inline-assembly
+    return size > 0;
+  }
+}
+
+library SafeMath {
+  function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
+    if (a == 0) {
+      return 0;
+    }
+    c = a * b;
+    assert(c / a == b);
+    return c;
+  }
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a / b;
+  }
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+  function add(uint256 a, uint256 b) internal pure returns (uint256 c) {
+    c = a + b;
+    assert(c >= a);
+    return c;
+  }
+}
+
+contract ERC721Receiver {
+  bytes4 constant ERC721_RECEIVED = 0xf0b9e5ba;
+  function onERC721Received(address _from, uint256 _tokenId, bytes _data) public returns(bytes4);
+}
+
+contract ERC721Basic {
+  event Transfer(address indexed _from, address indexed _to, uint256 _tokenId);
+  event Approval(address indexed _owner, address indexed _approved, uint256 _tokenId);
+  event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+
+  function balanceOf(address _owner) public view returns (uint256 _balance);
+  function ownerOf(uint256 _tokenId) public view returns (address _owner);
+  function exists(uint256 _tokenId) public view returns (bool _exists);
+
+  function approve(address _to, uint256 _tokenId) public;
+  function getApproved(uint256 _tokenId) public view returns (address _operator);
+
+  function setApprovalForAll(address _operator, bool _approved) public;
+  function isApprovedForAll(address _owner, address _operator) public view returns (bool);
+
+  function transferFrom(address _from, address _to, uint256 _tokenId) public;
+  function safeTransferFrom(address _from, address _to, uint256 _tokenId) public;
+  function safeTransferFrom(
+    address _from,
+    address _to,
+    uint256 _tokenId,
+    bytes _data
+  )
+    public;
+}
+
+contract ERC721BasicToken is ERC721Basic {
+  using SafeMath for uint256;
+  using AddressUtils for address;
+  
+  bytes4 constant ERC721_RECEIVED = 0xf0b9e5ba; 
+
+  // Mapping from token ID to owner
+  mapping (uint256 => address) internal tokenOwner;
+
+  // Mapping from token ID to approved address
+  mapping (uint256 => address) internal tokenApprovals;
+
+  // Mapping from owner to number of owned token
+  mapping (address => uint256) internal ownedTokensCount;
+
+  // Mapping from owner to operator approvals
+  mapping (address => mapping (address => bool)) internal operatorApprovals;
+
+  modifier onlyOwnerOf(uint256 _tokenId) {
+    require(ownerOf(_tokenId) == msg.sender);
+    _;
+  }
+
+  modifier canTransfer(uint256 _tokenId) {
+    require(isApprovedOrOwner(msg.sender, _tokenId));
+    _;
+  }
+
+  function balanceOf(address _owner) public view returns (uint256) {
+    require(_owner != address(0));
+    return ownedTokensCount[_owner];
+  }
+
+  function ownerOf(uint256 _tokenId) public view returns (address) {
+    address owner = tokenOwner[_tokenId];
+    require(owner != address(0));
+    return owner;
+  }
+
+  function exists(uint256 _tokenId) public view returns (bool) {
+    address owner = tokenOwner[_tokenId];
+    return owner != address(0);
+  }
+
+  function approve(address _to, uint256 _tokenId) public {
+    address owner = ownerOf(_tokenId);
+    require(_to != owner);
+    require(msg.sender == owner || isApprovedForAll(owner, msg.sender));
+
+    if (getApproved(_tokenId) != address(0) || _to != address(0)) {
+      tokenApprovals[_tokenId] = _to;
+      emit Approval(owner, _to, _tokenId);
+    }
+  }
+
+  function getApproved(uint256 _tokenId) public view returns (address) {
+    return tokenApprovals[_tokenId];
+  }
+
+  function setApprovalForAll(address _to, bool _approved) public {
+    require(_to != msg.sender);
+    operatorApprovals[msg.sender][_to] = _approved;
+    emit ApprovalForAll(msg.sender, _to, _approved);
+  }
+
+  function isApprovedForAll(address _owner, address _operator) public view returns (bool) {
+    return operatorApprovals[_owner][_operator];
+  }
+  function transferFrom(address _from, address _to, uint256 _tokenId) public canTransfer(_tokenId) {
+    require(_from != address(0));
+    require(_to != address(0));
+
+    clearApproval(_from, _tokenId);
+    removeTokenFrom(_from, _tokenId);
+    addTokenTo(_to, _tokenId);
+    
+    emit Transfer(_from, _to, _tokenId);
+  }
+
+  function safeTransferFrom(address _from, address _to, uint256 _tokenId) public canTransfer(_tokenId) {
+    safeTransferFrom(_from, _to, _tokenId, "");
+  }
+  function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes _data) public canTransfer(_tokenId) {
+    transferFrom(_from, _to, _tokenId);
+    require(checkAndCallSafeTransfer(_from, _to, _tokenId, _data));
+  }
+
+  function isApprovedOrOwner(address _spender, uint256 _tokenId) internal view returns (bool) {
+    address owner = ownerOf(_tokenId);
+    return _spender == owner || getApproved(_tokenId) == _spender || isApprovedForAll(owner, _spender);
+  }
+
+  function _mint(address _to, uint256 _tokenId) internal {
+    require(_to != address(0));
+    addTokenTo(_to, _tokenId);
+    emit Transfer(address(0), _to, _tokenId);
+  }
+
+  function _burn(address _owner, uint256 _tokenId) internal {
+    clearApproval(_owner, _tokenId);
+    removeTokenFrom(_owner, _tokenId);
+    emit Transfer(_owner, address(0), _tokenId);
+  }
+
+  function clearApproval(address _owner, uint256 _tokenId) internal {
+    require(ownerOf(_tokenId) == _owner);
+    if (tokenApprovals[_tokenId] != address(0)) {
+      tokenApprovals[_tokenId] = address(0);
+      emit Approval(_owner, address(0), _tokenId);
+    }
+  }
+
+  function addTokenTo(address _to, uint256 _tokenId) internal {
+    require(tokenOwner[_tokenId] == address(0));
+    tokenOwner[_tokenId] = _to;
+    ownedTokensCount[_to] = ownedTokensCount[_to].add(1);
+  }
+
+  function removeTokenFrom(address _from, uint256 _tokenId) internal {
+    require(ownerOf(_tokenId) == _from);
+    ownedTokensCount[_from] = ownedTokensCount[_from].sub(1);
+    tokenOwner[_tokenId] = address(0);
+  }
+
+  function checkAndCallSafeTransfer(address _from, address _to, uint256 _tokenId, bytes _data) internal returns (bool) {
+    if (!_to.isContract()) {
+      return true;
+    }
+    bytes4 retval = ERC721Receiver(_to).onERC721Received(_from, _tokenId, _data);
+    return (retval == ERC721_RECEIVED);
+  }
+}
 
 //randomize icin gerekli olacak.
 //import "github.com/oraclize/ethereum-api/oraclizeAPI.sol";
@@ -16,7 +212,7 @@ contract PaniniERC721Token is ERC721BasicToken {
     // Token symbol
     string internal symbol_;
 
-    function PaniniERC721Token() public {
+    constructor() public {
         name_ = "Panini Token";
         symbol_ = "Panini Symbol";
     }
@@ -31,36 +227,6 @@ contract PaniniERC721Token is ERC721BasicToken {
     
 }
 
-//this test failed.
-//   msg.sender = paniniTokenTest.address
-//   thus, in approve method, require(msg.sender == owner) returns false
-//      owner: owner of token  
-//we can use this pattern in market. (cryptoKitties uses for auctions.)
-contract paniniTokenTest {
-    //PaniniERC721Token nft;
-    uint256 nextTokenId;
-    
-    function paniniTokenTest() public {
-        //nft = new PaniniERC721Token();
-    }
-    
-    function mint() public{
-        nextTokenId = nextTokenId + 1;
-      
-        //nft.mint(msg.sender, nextTokenId);
-    }
-    
-}
-//true usage:
-contract paniniTokenTest2 is PaniniERC721Token{
-    uint256 nextTokenId;
-    function mint() public{
-        nextTokenId = nextTokenId + 1;
-        super._mint(msg.sender, nextTokenId);
-    }
- 
-}
-
 
 //#########################################
 //###    PANINI OWNERS - CONTROLLER     ###
@@ -71,7 +237,7 @@ contract PaniniOwner{
     address public pendingOwner;
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    function PaniniOwner() public {
+    constructor() public {
         owner = msg.sender;
     }
 
@@ -85,7 +251,6 @@ contract PaniniOwner{
         _;
     }
 
-    
     function isOwner() view internal returns(bool res){
         if(msg.sender == owner) {
             res = true;
@@ -129,7 +294,6 @@ contract UsingRole{
 
 }
 
-
 /**
  * The paniniDevAccounts contract does this and that...
  */
@@ -140,11 +304,11 @@ contract PaniniDevAccounts is PaniniOwner, UsingRole {
     event DevAccountRoleAdded(address _address);
     event DevAccountRoleRemoved(address _address);
     
-    function PaniniDevAccounts() public {
+    constructor() public {
         
     }    
 
-    function addDevAccount(address _address, Role.RoleType _roleType, bool _active) internal returns(bool success) {
+    function _addDevAccount(address _address, Role.RoleType _roleType, bool _active) internal returns(bool success) {
         if( devAccounts[_address].active == false ) {            
             devAccounts[_address].active = _active;
             devAccounts[_address].roleType = _roleType;
@@ -154,16 +318,16 @@ contract PaniniDevAccounts is PaniniOwner, UsingRole {
         }
     }
 
-    function addDevAccountToCEO (address _address, bool _active) __onlyOwner internal returns(bool success) {
-        success = addDevAccount(_address, Role.RoleType.CEO, _active);     
+    function addDevAccountToCEO (address _address, bool _active) __onlyOwner public returns(bool success) {
+        success = _addDevAccount(_address, Role.RoleType.CEO, _active);     
     }
 
-    function addDevAccountToCFO (address _address, bool _active) __onlyOwner internal returns(bool success) {
-        success = addDevAccount(_address, Role.RoleType.CFO, _active);     
+    function addDevAccountToCFO (address _address, bool _active) __onlyOwner public returns(bool success) {
+        success = _addDevAccount(_address, Role.RoleType.CFO, _active);     
     }
 
-    function addDevAccountToCOO (address _address, bool _active) __onlyOwner internal returns(bool success) {
-        success = addDevAccount(_address, Role.RoleType.COO, _active);     
+    function addDevAccountToCOO (address _address, bool _active) __onlyOwner public returns(bool success) {
+        success = _addDevAccount(_address, Role.RoleType.COO, _active);     
     }
     
     function removeDevAccount(address _address) __onlyOwner public returns(bool success) {
@@ -295,7 +459,7 @@ contract Mutex {
     mapping (address => bool) mutex;
     
     function enter() public view {
-        if ( mutex[msg.sender] == true) { throw; }
+        require( mutex[msg.sender] == true);
         mutex[msg.sender] == true;
     }
 
@@ -343,30 +507,34 @@ contract UsingShareholder {
     Mutex mutex;
 
     modifier __isOnlyOwnerOfShareholder() {
-        require(shareholderData[msg.sender].owner != msg.sender);
+        require(shareholderData[msg.sender].owner == msg.sender);
         _;
     }
 
-    function UsingShareholder() public {
+    constructor() public payable{
+        mutex = new Mutex();
         initShareHolders();
     }
 
     function initShareHolders() internal {
         // ilk hesaplar.   
-        address shareholderAddress1 = address(0xdd870fa1b7c4700f2bd7f44238821c26f7392148);
-        addShareHolder(shareholderAddress1, 20);
-        address shareholderAddress2 = address(0x583031d1113ad414f02576bd6afabfb302140225);
-        addShareHolder(shareholderAddress2, 10);
+        //initte total 100'u gecmemeli.
+
+        address shareholderAddress1 = address(0x583031D1113aD414F02576BD6afaBfb302140225);
+        _addShareHolder(shareholderAddress1, 10);
+
+        address shareholderAddress2 = address(0xdD870fA1b7C4700F2BD7f44238821C26f7392148);
+        _addShareHolder(shareholderAddress2, 20);
     }
 
     function isShareHolder(address _address) public view returns(bool) {
-        if(shareholderData[_address].owner != _address) {
+        if(shareholderData[_address].owner == _address) {
             return true;
         }
         return false;
     }
 
-    function addShareHolder(address _address, uint256 _percentage) internal {
+    function _addShareHolder(address _address, uint256 _percentage) internal {
         
         require (isShareHolder(_address) == false);
 
@@ -397,16 +565,31 @@ contract UsingShareholder {
 
             //note: hic bir zaman total percentage 100'u gecmeyecegi icin,
             // amount for dongusu sonunda pozitif olacaktir.
-            // kontrolu addShareHolder'da yapilmisti.
+            // kontrolu _addShareHolder'da yapilmisti.
             ownerBalance += amount;
         }                
     }
     
+    function _getOwnerBalance() internal view returns(uint256) {
+        return ownerBalance;  
+    }
+
+    function _getShareholderBalance(address _address) internal view returns(uint256) {
+        require(isShareHolder(_address));
+        return shareholderData[_address].balance;  
+    }
+
+    function getOwnerOfShareholderBalance() __isOnlyOwnerOfShareholder public view returns(uint256) {
+        return _getShareholderBalance(msg.sender);  
+    }
+
+
     function withdrawShareholderBalance() __isOnlyOwnerOfShareholder public payable {
         mutex.enter();
+        require(shareholderData[msg.sender].balance > 0); //belki mutex'e gerek kalmaz. Bu kontrol yetebilir.
         uint256 balance = shareholderData[msg.sender].balance;
         shareholderData[msg.sender].balance = 0;
-        if(!msg.sender.call.value(balance)()) { throw;}
+        require(!msg.sender.call.value(balance)());
         emit WithdrawShareholderBalance(msg.sender, balance);
         mutex.left();        
     }
@@ -415,8 +598,9 @@ contract UsingShareholder {
     function withdrawOwnerBalance() internal {
         mutex.enter();
         uint256 balance = ownerBalance;
+        require(ownerBalance > 0); //belki mutex'e gerek kalmaz. Bu kontrol yetebilir.
         ownerBalance = 0;
-        if(!msg.sender.call.value(balance)()) { throw;}
+        require(!msg.sender.call.value(balance)());
         emit WithdrawOwnerBalance(msg.sender, balance);
         mutex.left();        
     }
@@ -485,12 +669,11 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
     event Presaled();
     event UnPresaled();
 
-    function PaniniController() public {
+    constructor() public payable{
         //initial state.
         // starts with paused
         //3. parametre degistirilecek. tarih girilecek sonra.  
         paniniState = PaniniState.Data(true, true, 1231512);       
-        mutex = new Mutex();
     }
     
     modifier __whenNotPaused() {
@@ -545,13 +728,49 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
         }
     }
 
+
+    function addShareHolder(address _address, uint256 _percentage) __onlyOwner internal {
+        _addShareHolder(_address, _percentage);
+    }
+
     function withdrawBalance() __OnlyForThisRoles1(true, Role.RoleType.CFO) public payable {
         withdrawOwnerBalance();
     }
 
+
+    function getBalance() __OnlyForThisRoles1(true, Role.RoleType.CFO) public view returns(uint256) {
+        return address(this).balance;  
+    }
+
+    function getOwnerBalance() __OnlyForThisRoles1(true, Role.RoleType.CFO) public view returns(uint256){
+        return _getOwnerBalance();  
+    }
+
+    function getShareholderBalance(address _address) __OnlyForThisRoles1(true, Role.RoleType.CFO) public view returns(uint256) {
+        return _getShareholderBalance(_address);  
+    }
+
+
+    function () public payable {
+        
+    }
 }
 
 
+contract PaniniControllerTest is PaniniController {
+
+    //para dagitilacak.
+    function T_T_T_PaniniController() public payable{
+        mutex.enter();
+        distributeBalance(msg.value);        
+        mutex.left();
+    }
+
+
+    function () public payable {
+        
+    }
+}
 //#########################################
 //###               CARDS               ###
 //#########################################
@@ -624,7 +843,7 @@ contract UsingCard is PaniniERC721Token, PaniniController {
     //for test
     uint256 random;
     
-    function UsingCard() public {
+    constructor() public {
         random = 1;
         initAnimalCardBase();
         AnimalCard.Data memory emptyAnimalCard = AnimalCard.Data(0, 0, 0);        
@@ -666,14 +885,13 @@ contract UsingCard is PaniniERC721Token, PaniniController {
     }
     
     //returns index of animalCardBase
-    function generateRandomCardId() internal view returns (uint256) {
+    function generateRandomBaseId() internal view returns (uint256) {
         //private test for random
-        uint256 id = random;
-        uint256 delta = animalCardBase.length -1;
+        uint256 id = animalCards.length;
+        uint256 delta = animalCardBase.length;
         require(delta > 0);
 
-        id =( ( ( id + 2 ) * ( 3 * id + 2 ) ) % delta ) + 1;
-
+        id = ( ( id + 2 ) * ( 3 * id + 2 ) ) % delta;
         return id;
 
         // random'u nasil yapacagiz buna karar verilecek.
@@ -757,7 +975,7 @@ contract UsingCardPackage is UsingCard {
     mapping(uint256 => uint256) ownerOfPackageIndex;
 
 
-    function UsingCardPackage() public {
+    constructor() public {
         //id = 0 icin empty package
         //createdPackages.push(CardPackage.Data(0, address(0), 0,0,0,0,0));
         prices.normal = 5000000000000000000; //0.05 ether
@@ -766,7 +984,7 @@ contract UsingCardPackage is UsingCard {
         //TO DO: set special days.
     }
     
-    function createPackage(address _address) public payable {
+    function createPackage(address _address) public {
         numberOfPackageCreated += 1; //ayni zamanda package id.
         uint256 packageId = numberOfPackageCreated;
         
@@ -776,19 +994,19 @@ contract UsingCardPackage is UsingCard {
 
         //generating cards
         //card1
-        uint256 baseId1 = generateRandomCardId();
+        uint256 baseId1 = generateRandomBaseId();
         uint256 tokenId1 = mintCardWithBaseId(_address, baseId1);
         //card2
-        uint256 baseId2 = generateRandomCardId();
+        uint256 baseId2 = generateRandomBaseId();
         uint256 tokenId2 = mintCardWithBaseId(_address, baseId2);
         //card3
-        uint256 baseId3 = generateRandomCardId();
+        uint256 baseId3 = generateRandomBaseId();
         uint256 tokenId3 = mintCardWithBaseId(_address, baseId3);
         //card4
-        uint256 baseId4 = generateRandomCardId();
+        uint256 baseId4 = generateRandomBaseId();
         uint256 tokenId4 = mintCardWithBaseId(_address, baseId4);
         //card5
-        uint256 baseId5 = generateRandomCardId();
+        uint256 baseId5 = generateRandomBaseId();
         uint256 tokenId5 = mintCardWithBaseId(_address, baseId5);
 
         createdPackages[packageId] = CardPackage.Data(packageId, _address, tokenId1, tokenId2, tokenId3, tokenId4, tokenId5);
@@ -827,27 +1045,6 @@ contract UsingCardPackage is UsingCard {
             ownerOfPackageIndex[_packageId] = 0; // hash[2] = 0
             ownerOfPackageIndex[lastPackageId] = index; //hash[4] = 1
 
-            //gerek yok. 
-            // sebep1: id'ler autoinc.
-            // sebep2: createdPackages hash'te tutabiliriz?
-            // sebep3: gecmise alinan ait paketleri goruntuleme olabilir?
-
-            //delete from createdPackages
-            //last index'teki paket tasinmali.
-            //paketid'ler index bu sefer.
-            //uint256 id = _packageId; //2
-            //uint256 lastId = createdPackages.length -1; //6
-            //address lastIdOwner = createdPackages[lastId].owner;
-            //set last ownerOfPackage && ownerOfPackageIndex
-            //lastIndex = ownerOfPackageIndex[lastId]; // 1
-            //ownerOfPackage[lastIdOwner][lastIndex] = id; // arr[1] = 2
-            //ownerOfPackageIndex[lastId] = 0; // hash[6] = 0
-            //ownerOfPackageIndex[id] = lastIndex; // hash[2] = 1
-            //move last packate in createdPackages arr
-            //CardPackage.Data lastPackage = createdPackages[lastId];
-            //lastPackage.id = id;
-            //createdPackages[id] = lastPackage;
-            //delete createdPackages[lastId];
             delete createdPackages[_packageId];
 
         }
@@ -857,7 +1054,7 @@ contract UsingCardPackage is UsingCard {
     //fiyatlar sonradan degistirilemesin?
     function computePriceOfPackage(uint _numberOfPackage) public view returns(uint256 price) {
          //initial price
-        if(numberOfPackageCreated <= 100 && now < paniniState.presaledEndDate) {
+        if(numberOfPackageCreated <= 100/* && now < paniniState.presaledEndDate*/) {
             uint remaining = 100 - numberOfPackageCreated;
             //to do: sadece presale icin olacak.
             if(_numberOfPackage < remaining ) {
@@ -907,7 +1104,7 @@ contract PaniniMarket {
     // Values 0-10,000 map to 0%-100%
     uint256 public ownerCut;
 
-    function PaniniMarket(address _nftAddress, uint256 _cut) public {
+    constructor(address _nftAddress, uint256 _cut) public {
         //TODO: control address + msg.sender
         nft = PaniniERC721Token(_nftAddress);
         ownerCut = _cut;
@@ -1098,28 +1295,30 @@ library Player {
 
     // require carId != 0;
     // oyuncu card'a sahip mi.
-    function hasCard(Data storage self, uint256 _baseId, uint256 _cardId ) public view returns(bool _hasCard) {
+    function hasCard(Data storage self, uint256 _baseId, uint256 _cardId ) public view returns(bool) {
         require (_cardId != 0 ); // !hasCard(...) _cardId = 0 ile cagrilirsa true dondurmesin. Bunun yerine islemi gerceklestirmesin.        
         if(self.animalCards[_baseId].length != 0) {
             uint256 cardIndex = self.animalCardsIndex[_cardId];
             //bu kartin sahibi mi;                
             if(self.animalCards[_baseId][cardIndex] == _cardId) {
-                _hasCard = true;
+                return true;
             }
         }
+        return false;
     }
     
 
-    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal returns(bool success){
+    function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal returns(bool){
         //bu card var ekli degilse ve cardId 0 degil ise.
         if(!hasCard(self, _baseId, _cardId)) {
             self.animalCardsIndex[_cardId] = self.animalCards[_baseId].length;
             self.animalCards[_baseId].push(_cardId); 
-            success = true;
+            return true;
         } 
+        return false;
     }
 
-    function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal returns(bool success) {
+    function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal returns(bool) {
         //listesinde bu tip bir kart var mi.
         if(hasCard(self, _baseId, _cardId)) { 
 
@@ -1134,11 +1333,10 @@ library Player {
             self.animalCards[_baseId].length--;
             self.animalCardsIndex[_cardId] = 0;
             self.animalCardsIndex[lastCard] = cardIndex;
-            success = true;
-
+            return true;
         }
-    }
-    
+        return false;
+    }    
 }
 
 //TODO: approve'du vs bunun gibi metodlara bir el atilacak.
@@ -1151,7 +1349,7 @@ contract UsingPlayer is UsingPaniniMarket{
     
     uint256 numberOfPlayer;
     
-    function UsingPlayer() public {
+    constructor() public {
         numberOfPlayer = 0;
     }
     
@@ -1222,7 +1420,7 @@ contract UsingPlayer is UsingPaniniMarket{
 
     function addRandomCardToPlayer(address _address) internal {
         isPlayer(_address);
-        uint256 baseId = generateRandomCardId();
+        uint256 baseId = generateRandomBaseId();
         //kart'in uretilmesi.
         uint256 cardId = mintCardWithBaseId(_address, baseId);
         addCardToPlayer(_address, cardId, baseId);
@@ -1328,7 +1526,7 @@ contract UsingPlayer is UsingPaniniMarket{
         currentPrice -= cutOf;
         //transfer owner to currentPrice
         address owner = getOwnerOfAuctionFromCardId(_cardId);
-        if(!owner.call.value(currentPrice)()) { throw;}
+        require(!owner.call.value(currentPrice)());
         emit Bid(owner, msg.sender, _cardId, currentPrice, cutOf);
         mutex.left();
     }
@@ -1429,18 +1627,8 @@ contract UsingPlayer is UsingPaniniMarket{
 //#########################################
 contract Panini is UsingPlayer{
 
-    function Panini() public {
+    constructor() public {
         
     }
-    
-    function addPackageToPlayerTest(address _address) public payable {
-
-        addRandomCardToPlayer(_address);
-        addRandomCardToPlayer(_address);
-        addRandomCardToPlayer(_address);
-        addRandomCardToPlayer(_address);
-        addRandomCardToPlayer(_address);
-    }
-
 }
 
