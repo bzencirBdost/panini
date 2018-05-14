@@ -227,6 +227,104 @@ contract PaniniERC721Token is ERC721BasicToken {
     
 }
 
+contract PaniniState {
+
+    bool paused;
+    bool presaled;
+    uint256 presaledEndDate;
+    PaniniController paniniController;
+
+    event Pause();
+    event UnPause();
+    event Presaled();
+    event UnPresaled();
+    
+    function PaniniState() public {
+    }
+
+    modifier __onlyIfPaniniController {
+        require (msg.sender == address(paniniController));
+        _;
+    }
+
+    modifier __whenNotPaused() {
+        require(!paused);
+        _;
+    }
+
+    modifier __whenPaused() {
+        require(paused);
+        _;
+    }
+
+    modifier __whenNotPresaled() {
+        require(!presaled);
+        _;
+    }
+
+    modifier __whenPresaled() {
+        require(presaled);
+        _;
+    }
+
+    //1 kere set edilebilsin
+    function attachPaniniController(address _address) public {
+        if(address(paniniController) == address(0) && _address != address(0) ) {
+            paniniController = PaniniController(_address);
+        }      
+    }
+
+    function getPaused() public view returns(bool) {
+        return paused;
+    }
+    
+    function pause() __onlyIfPaniniController __whenNotPaused public {
+        paused = true;
+    }
+
+    function unPause() __onlyIfPaniniController __whenPaused public {
+        paused = false;
+    }
+
+    function getPresaled() public view returns(bool) {
+        return paused;
+    }
+    
+    function presale() __onlyIfPaniniController __whenNotPresaled public {
+        presaled = true;
+    }
+
+    function unPresale() __onlyIfPaniniController __whenPresaled public {
+        presaled = false;
+    }
+}
+
+/**
+ * The PaniniBase 
+ */
+contract PaniniBase is PaniniState, PaniniERC721Token {
+  function PaniniBase () public{
+    
+  }  
+}
+
+//contract -> library
+//sebebi: bir bug var. payable bir contract'in metodunda bu contract'in metodlari payeble bile olsa kullaninca 
+//"The constructor should be payable if you send value." hatasini firlatiyor.
+library Mutex {
+    struct Data {
+        bool isEntered;
+    }
+
+    function enter(Mutex.Data self) pure internal {
+        require( self.isEntered == false);
+        self.isEntered == true;    
+    }
+
+    function left(Mutex.Data self) pure internal {
+        self.isEntered == false;    
+    }
+}
 
 //#########################################
 //###    PANINI OWNERS - CONTROLLER     ###
@@ -360,23 +458,6 @@ contract PaniniDevAccounts is PaniniOwner, UsingRole {
         _;
     }
 
-    /* err in usage.
-    modifier __OnlyForThisRoles(bool _withOwner, Role.RoleType[] _roles) {
-        bool result = false;
-        if(_withOwner && isOwner()) {
-            result = true;
-        }
-        if(devAccounts[msg.sender].active == true) {
-            for(uint256 i = 0; i < _roles.length; i++) {
-                if( devAccounts[msg.sender].roleType == _role[i]) {
-                    result = true;                                
-                }
-            }
-        }
-        require (result == true);        
-        _;
-    }*/
-
     modifier __OnlyForThisRoles1(bool _withOwner, Role.RoleType _role1 ) {
         bool result = false;
         if(_withOwner && isOwner()) {
@@ -422,61 +503,6 @@ contract PaniniDevAccounts is PaniniOwner, UsingRole {
 
 }
 
-
-library PaniniState {
-
-    struct Data {
-        bool paused;
-        bool presaled;
-        uint256 presaledEndDate;
-    }
-
-    function pause(PaniniState.Data self) pure internal {
-        self.paused = true;
-    }
-
-    function unPause(PaniniState.Data self) pure internal {
-        self.paused = false;
-    }
-
-    function presale(PaniniState.Data self) pure internal {
-        self.presaled = true;
-    }
-
-    function unPresale(PaniniState.Data self) pure internal {
-        self.presaled = false;
-    }
-
-}
-
-contract UsingPaniniState{
-    using PaniniState for PaniniState.Data;
-    PaniniState.Data paniniState;
-
-}
-
-//contract -> library
-//sebebi: bir bug var. payable bir contract'in metodunda bu contract'in metodlari payeble bile olsa kullaninca 
-//"The constructor should be payable if you send value." hatasini firlatiyor.
-library Mutex {
-    struct Data {
-        bool isEntered;
-    }
-
-    function enter(Mutex.Data self) pure internal {
-        require( self.isEntered == false);
-        self.isEntered == true;    
-    }
-
-    function left(Mutex.Data self) pure internal {
-        self.isEntered == false;    
-    }
-}
-/*
-contract UsingMutex {
-    using Mutex for Mutex.Data;
-}
-*/
 
 //#########################################
 //###           SHAREHOLDER             ###
@@ -556,7 +582,7 @@ contract UsingShareholder  {
     }   
     
     //distributeBalance
-    function distributeBalance(uint256 _amount) internal{
+    function _distributeBalance(uint256 _amount) internal{
         if(_amount != 0) {
 
             uint256 amount = _amount;
@@ -669,69 +695,45 @@ contract UsingShareholder  {
 }
 
 
-contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingShareholder {
-    event Pause();
-    event UnPause();
-    event Presaled();
-    event UnPresaled();
+contract PaniniController is PaniniDevAccounts, UsingShareholder {
 
-    function PaniniController() public payable{
-        //initial state.
-        // starts with paused
-        //3. parametre degistirilecek. tarih girilecek sonra.  
-        paniniState = PaniniState.Data(true, true, 1231512);       
+    PaniniState paniniState;
+    
+    modifier __onlyIfPaniniState {
+        require (msg.sender == address(paniniState));
+        _;
     }
     
-    modifier __whenNotPaused() {
-        require(!paniniState.paused);
-        _;
-    }
-
-    modifier __whenPaused() {
-        require(paniniState.paused);
-        _;
-    }
-
-    modifier __whenNotPresaled() {
-        require(!paniniState.presaled);
-        _;
-    }
-
-    modifier __whenPresaled() {
-        require(paniniState.presaled);
-        _;
-    }
-
-    function pause() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
-        if(!paniniState.paused) {
-            paniniState.pause();
-            emit Pause();
-            success = true;            
+    //1 kez set edilebilsin.
+    function attachPaniniState(address _address) public {
+        if( address(paniniState) == address(0) && _address != address(0) ) {
+            paniniState = PaniniState(_address);       
+            paniniState.attachPaniniController(address(this));
         }
+    }
+    
+    function distributeBalance(uint256 _amount) __onlyIfPaniniState public {
+        _distributeBalance(_amount);
+    }
+    
+    function pause() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
+        paniniState.pause();
+        success = true;            
     }
 
     function unPause() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
-        if(paniniState.paused) {
-            paniniState.unPause();
-            emit UnPause();
-            success = true;
-        }
+        paniniState.unPause();
+        success = true;
     }
 
     function presale() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
-        if(!paniniState.presaled) {
-            paniniState.presale();
-            emit Presaled();
-            success = true;            
-        }
+        paniniState.presale();
+        success = true;            
     }
 
     function unPresale() __OnlyForThisRoles1(true, Role.RoleType.CEO) public returns (bool success) {
-        if(paniniState.presaled) {
-            paniniState.unPresale();
-            emit UnPresaled();
-            success = true;
-        }
+        paniniState.unPresale();
+        success = true;
     }
 
     function addShareHolder(address _address, uint256 _percentage) __onlyOwner public {
@@ -761,17 +763,48 @@ contract PaniniController is PaniniDevAccounts, UsingPaniniState, UsingSharehold
 
 }
 
+/*
+    test: 2 tane contract var. bu contractlar PaniniBaseTest'in state'ini degistirmeye calisiyor.
+    //test sonucu: sadece PaniniControllerTest degistirebildi.
+    //sebebi: paninistate -> setPaniniControllerAddress
+    //not: sadece paniniController.attach yapmak yeterli.
+*/
+
+
+
+contract PaniniBaseTest is PaniniBase {
+
+    function PaniniBaseTest() public payable {
+        
+    }
+
+    //para dagitilacak.
+    function distrubuteTest() public payable{
+        require(address(paniniController).call.value(msg.value)());
+        paniniController.distributeBalance(msg.value);        
+    }
+    
+    
+    function () public payable {
+        
+    }
+    
+}
+
 
 contract PaniniControllerTest is PaniniController {
 
-    //para dagitilacak.
-    function T_T_T_PaniniController() public payable{
-        mutex.enter();
-        distributeBalance(msg.value);        
-        mutex.left();
-    }
+    function PaniniControllerTest() public payable{
 
+    }
 }
+
+
+contract PaniniControllerWithOtherContractTest is PaniniController {
+    
+}
+
+
 //#########################################
 //###               CARDS               ###
 //#########################################
@@ -824,7 +857,7 @@ library AnimalCard {
     }
 }
 
-contract UsingCard is PaniniERC721Token, PaniniController {
+contract UsingCard is PaniniERC721Token {
 
     using AnimalCardBase for AnimalCardBase.Data;
     using AnimalCard for AnimalCard.Data;
