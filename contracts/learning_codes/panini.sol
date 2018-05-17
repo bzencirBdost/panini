@@ -428,9 +428,9 @@ library AnimalCardBase {
 
   //1 kere set edilebilsin
   function setPaniniState(address _address) public {
-    if(address(paniniState) == address(0) && _address != address(0) ) {
+    //if(address(paniniState) == address(0) && _address != address(0) ) {
       paniniState = PaniniState(_address);
-    }      
+    //}      
   }
 
 
@@ -538,16 +538,16 @@ contract PaniniCardPackage {
 
   //1 kere set edilebilsin
   function setPaniniState(address _address) public {
-    if(address(paniniState) == address(0) && _address != address(0) ) {
+    //if(address(paniniState) == address(0) && _address != address(0) ) {
       paniniState = PaniniState(_address);
-    }      
+    //}      
   }
 
   //1 kere set edilebilsin
   function setPaniniCardBase(address _address) public {
-    if(address(paniniCardBase) == address(0) && _address != address(0) ) {
+    //if(address(paniniCardBase) == address(0) && _address != address(0) ) {
       paniniCardBase = PaniniCardBase(_address);
-    }      
+    //}      
   }
 
   function createPackage(address _address) public returns(uint256, uint256, uint256, uint256, uint256){
@@ -617,15 +617,24 @@ contract PaniniMarket is AttachingPaniniController {
   // Reference to contract tracking NFT ownership
   PaniniERC721Token public nft; // panini
 
+  PaniniState paniniState;
+
 
   function PaniniMarket() public {
   }
 
     //TODO: 1 kez set edilecek sekilde degistirilecek.
   function setNFT(address _address) public {
-    if(address(nft) == address(0) && _address != address(0) ) {
+    //if(address(nft) == address(0) && _address != address(0) ) {
       nft = PaniniERC721Token(_address);
-    }
+    //}
+  }
+
+  //1 kere set edilebilsin
+  function setPaniniState(address _address) public {
+    //if(address(paniniState) == address(0) && _address != address(0) ) {
+      paniniState = PaniniState(_address);
+    //}      
   }
 
   //TODO: 1 kez set edilecek sekilde degistirilecek.
@@ -756,7 +765,7 @@ contract PaniniMarket is AttachingPaniniController {
 /**
  * The PaniniBase 
  */
- contract PaniniBase is PaniniState, PaniniERC721Token {
+ contract PaniniBase is AttachingPaniniController {
   using Mutex for Mutex.Data;
 
   PaniniState paniniState;
@@ -774,41 +783,41 @@ contract PaniniMarket is AttachingPaniniController {
 
   //1 kere set edilebilsin
   function setPaniniState(address _address) public {
-    if(address(paniniState) == address(0) && _address != address(0) ) {
+    //if(address(paniniState) == address(0) && _address != address(0) ) {
       paniniState = PaniniState(_address);
-    }      
+    //}      
   }
 
   //1 kere set edilebilsin
   function setPaniniCardBase(address _address) public {
-    if(address(paniniCardBase) == address(0) && _address != address(0) ) {
+    //if(address(paniniCardBase) == address(0) && _address != address(0) ) {
       paniniCardBase = PaniniCardBase(_address);
-    }      
+    //}      
   }
 
   //1 kere set edilebilsin
   function setPaniniCardPackage(address _address) public {
-    if(address(paniniCardPackage) == address(0) && _address != address(0) ) {
+    //if(address(paniniCardPackage) == address(0) && _address != address(0) ) {
       paniniCardPackage = PaniniCardPackage(_address);
-    }      
+    //}      
   }
 
   //1 kere set edilebilsin
   function setPaniniMarket(address _address) public {
-    if(address(paniniMarket) == address(0) && _address != address(0) ) {
+    //if(address(paniniMarket) == address(0) && _address != address(0) ) {
       paniniMarket = PaniniMarket(_address);
       //TODO: 1 kere set edilebilsin bu methodlar.
       paniniMarket.setNFT(address(this));
       paniniMarket.setCut(1000); //%10
       
-    }      
+    //}      
   }
   
 }
 
 
 
-contract UsingCard is PaniniBase {
+contract UsingCard is PaniniBase, PaniniERC721Token {
   //ANIMAL CARDS
   // Bu deger her card uretildiginde emit ile server tarafinda tutulacak. Ve arayuzde oradan gosterilecek.
   //mapping (uint256 => uint256[]) baseIdToCardIdList;
@@ -1415,6 +1424,7 @@ contract PaniniController is PaniniDevAccounts, UsingShareholder {
   PaniniBase paniniBase;
   PaniniState paniniState;
   PaniniCardBase paniniCardBase;
+  PaniniMarket paniniMarket;
  
   modifier __onlyIfPaniniBase{
     require (msg.sender == address(paniniState));
@@ -1424,29 +1434,37 @@ contract PaniniController is PaniniDevAccounts, UsingShareholder {
 
   //1 kez set edilebilsin.
   function attachPaniniBase(address _address) public {
-    if( address(paniniState) == address(0) && _address != address(0) ) {
+    //if( address(paniniState) == address(0) && _address != address(0) ) {
       paniniBase = PaniniBase(_address);       
       paniniBase.attachPaniniController(address(this));
-    }
+    //}
   }
   
   //1 kez set edilebilsin.
   function attachPaniniState(address _address) public {
-    if( address(paniniState) == address(0) && _address != address(0) ) {
+    //if( address(paniniState) == address(0) && _address != address(0) ) {
       paniniState = PaniniState(_address);       
       paniniState.attachPaniniController(address(this));
-    }
+    //}
   }
 
   //1 kez set edilebilsin.
   function attachPaniniCardBase(address _address) public {
-    if( address(paniniCardBase) == address(0) && _address != address(0) ) {
+    //if( address(paniniCardBase) == address(0) && _address != address(0) ) {
       paniniCardBase = PaniniCardBase(_address);       
       paniniCardBase.attachPaniniController(address(this));
-    }
+    //}
+  }
+  
+  //1 kez set edilebilsin.
+  function attachPaniniMarket(address _address) public {
+    //if( address(paniniMarket) == address(0) && _address != address(0) ) {
+      paniniMarket = PaniniMarket(_address);       
+      paniniMarket.attachPaniniController(address(this));
+    //}
   }
 
-  
+
   function distributeBalance(uint256 _amount) __onlyIfPaniniBase public {
     _distributeBalance(_amount);
   }
