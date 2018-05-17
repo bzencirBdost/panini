@@ -255,6 +255,7 @@ contract PaniniState is AttachingPaniniController {
   bool presaled;
   uint256 presaledEndDate;
 
+
   event Pause();
   event UnPause();
   event Presaled();
@@ -393,28 +394,20 @@ library AnimalCardBase {
 }
 
 /**
- * The PaniniCardBase contract does this and that...
+ * The PaniniCardCreater contract does this and that...
  */
- contract PaniniCardBase is AttachingPaniniController {
+ contract PaniniCardCreater is AttachingPaniniController {
+
   using AnimalCardBase for AnimalCardBase.Data;
 
-  PaniniState paniniState;
   //server tarafinda her create'te db guncellenecek. Bu sayede base card'larin listesi goruntulenebilecek.
   event CreatedAnimalCard(uint256 id, string name, uint256 health, uint256 weigth, uint256 speed, uint256 regionIndex, uint256 rarity);
   // metedata
   AnimalCardBase.Data[] animalCardBaseList; 
 
-  function PaniniCardBase () public {
+  function PaniniCardCreater () public {
     initAnimalCardBase();
   }  
-
-  //1 kere set edilebilsin
-  function setPaniniState(address _address) public {
-    if(address(paniniState) == address(0) && _address != address(0) ) {
-      paniniState = PaniniState(_address);
-    }      
-  }
-
 
   function initAnimalCardBase() internal {
     //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
@@ -495,131 +488,30 @@ library AnimalCardBase {
 }
 
 
-
-contract PaniniCardPackage {
- 
-  event PackageCreated(uint256 id, address receiver, uint256 baseId1, uint256 baseId2, uint256 baseId3, uint256 baseId4, uint256 baseId5 );
-
-  struct PackagePrice{
-    uint256 normal;
-    uint256 initial;
-    uint256 special;
-  }
-
-  PaniniState paniniState;
-  PaniniCardBase paniniCardBase;
-
-  uint256 numberOfPackageCreated;
-
-  //package gecmisi tutulacak mi?    
-  PackagePrice packagePrice;
-
-  function PaniniCardPackage () public{
-    packagePrice.normal = 5000000000000000000; //0.05 ether
-    packagePrice.initial = 1000000000000000000; //0.01 ether
-    packagePrice.special = 3000000000000000000; //0.03 ether
-  }  
-
-  //1 kere set edilebilsin
-  function setPaniniState(address _address) public {
-    if(address(paniniState) == address(0) && _address != address(0) ) {
-      paniniState = PaniniState(_address);
-    }      
-  }
-
-  //1 kere set edilebilsin
-  function setPaniniCardBase(address _address) public {
-    if(address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = PaniniCardBase(_address);
-    }      
-  }
-
-  function createPackage(address _address) public returns(uint256, uint256, uint256, uint256, uint256){
-    numberOfPackageCreated += 1; //ayni zamanda package id.
-    uint256 packageId = numberOfPackageCreated;
-
-    //generating cards bases
-    uint256 baseId1 = paniniCardBase.generateRandomBaseId();
-    uint256 baseId2 = paniniCardBase.generateRandomBaseId();
-    uint256 baseId3 = paniniCardBase.generateRandomBaseId();
-    uint256 baseId4 = paniniCardBase.generateRandomBaseId();
-    uint256 baseId5 = paniniCardBase.generateRandomBaseId();
-    PackageCreated(packageId, _address, baseId1, baseId2, baseId3, baseId4, baseId5);
-    return (baseId1, baseId2, baseId3, baseId4, baseId5);
-  }
-
-  //fiyatlar sonradan degistirilemesin?
-  function computePriceOfPackage(uint _numberOfPackage) public view returns(uint256 price) {
-   //initial price
-   if(numberOfPackageCreated <= 100/*TODO: && now < paniniState.presaledEndDate*/) {
-    uint remaining = 100 - numberOfPackageCreated;
-    //to do: sadece presale icin olacak.
-    if(_numberOfPackage < remaining ) {
-      //TO DO: check owerflow?
-      price = _numberOfPackage * packagePrice.initial;
-    } else {
-      price = (remaining * packagePrice.initial) + ((_numberOfPackage - remaining) * packagePrice.normal);
-    } 
-
-    //normal price
-    } else {
-      price = _numberOfPackage * packagePrice.normal;
-    }
-    //TO DO: ozel gun ise fiyat belirle
-    //else if .. {}
-
-  }
-  
-}
-
-
-
-
 /**
  * The PaniniBase 
  */
- contract PaniniBase is PaniniState {
-  using Mutex for Mutex.Data;
-
+ contract PaniniBase {
   PaniniState paniniState;
-  PaniniCardBase paniniCardBase;
-  PaniniCardPackage paniniCardPackage;
-
-  //for security
-  Mutex.Data mutex;
-
+  PaniniCardCreater paniniCardCreater;
   function PaniniBase () public{
-    mutex = Mutex.Data(false);
 
   }  
 
   //1 kere set edilebilsin
   function setPaniniState(address _address) public {
     if(address(paniniState) == address(0) && _address != address(0) ) {
-      paniniState = PaniniState(_address);
+      paniniState = PaniniController(_address);
     }      
   }
 
   //1 kere set edilebilsin
-  function setPaniniCardBase(address _address) public {
-    if(address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = PaniniCardBase(_address);
+  function setPaniniCardCreater(address _address) public {
+    if(address(paniniCardCreater) == address(0) && _address != address(0) ) {
+      paniniCardCreater = PaniniController(_address);
     }      
   }
 
-  //1 kere set edilebilsin
-  function setPaniniCardPackage(address _address) public {
-    if(address(paniniCardPackage) == address(0) && _address != address(0) ) {
-      paniniCardPackage = PaniniCardPackage(_address);
-    }      
-  }
-
-  
-}
-
-
-
-contract UsingCard is PaniniERC721Token, PaniniBase {
   //ANIMAL CARDS
   // Bu deger her card uretildiginde emit ile server tarafinda tutulacak. Ve arayuzde oradan gosterilecek.
   //mapping (uint256 => uint256[]) baseIdToCardIdList;
@@ -628,9 +520,17 @@ contract UsingCard is PaniniERC721Token, PaniniBase {
   mapping (uint256 => uint256) cardIdToBaseId;
   //token generate etmek icin;
   
+}
+
+
+
+
+
+
+contract UsingCard is PaniniERC721Token, PaniniBase {
 
   function UsingCard() public {
-
+    //empty tokenId: bu sayede tokenId == indexOf cardIdList
   }
   
 
@@ -638,7 +538,7 @@ contract UsingCard is PaniniERC721Token, PaniniBase {
   //token kullanacak.
   //to: token icin. 
   //baseId: random generated value of basecard index. 
-  function _mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
+  function mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
     
     lastMintedCardId++;
     uint256 cardId = lastMintedCardId;
@@ -648,20 +548,164 @@ contract UsingCard is PaniniERC721Token, PaniniBase {
     return cardId;
   }
 
-  function _mintRandomCard(address _to) internal returns(uint256) {
-    uint256 baseId = paniniCardBase.generateRandomBaseId();
-    //kart'in uretilmesi.
-    return _mintCardWithBaseId(_address, baseId);
-  }
-
   function getAnimalCardInfo(uint256 _cardId) internal view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
     uint256 baseId = cardIdToBaseId(_cardId);
     if(baseId != 0) {
-      return paniniCardBase.getAnimalCardBaseTupple(baseId);
+      return paniniCardCreater.getAnimalCardBaseTupple(baseId);
     }    
     return (0,'0',0,0,0,0,0);
   }
 
+}
+
+
+//#########################################
+//###              PACKAGE              ###
+//#########################################
+
+
+library CardPackage {
+
+  struct Data {
+    uint256 id;
+    address owner;
+    uint256 card1;        
+    uint256 card2;        
+    uint256 card3;        
+    uint256 card4;        
+    uint256 card5;     
+    //created date vs eklenebilir.   
+  }
+
+  struct Prices{
+    uint256 normal;
+    uint256 initial;
+    uint256 special;
+  }
+
+}
+
+
+contract UsingCardPackage is UsingCard {
+  using CardPackage for CardPackage.Data;
+  uint256 numberOfPackageCreated;
+
+  //package gecmisi tutulacak mi?    
+  CardPackage.Prices prices;
+  //ozel gunler?
+  mapping (uint256 => bool) specialDays;    
+
+  //created packages;
+  //CardPackage.Data[] createdPackages; 
+  //changed to hash
+  mapping (uint256 => CardPackage.Data) createdPackages;
+
+
+  //user address -> package id list
+  mapping(address => uint256[]) ownerOfPackage;
+  //packageId -> address of package list index
+  mapping(uint256 => uint256) ownerOfPackageIndex;
+
+
+  function UsingCardPackage() public {
+    //id = 0 icin empty package
+    //createdPackages.push(CardPackage.Data(0, address(0), 0,0,0,0,0));
+    prices.normal = 5000000000000000000; //0.05 ether
+    prices.initial = 1000000000000000000; //0.01 ether
+    prices.special = 3000000000000000000; //0.03 ether
+    //TO DO: set special days.
+  }
+
+  function createPackage(address _address) public {
+    numberOfPackageCreated += 1; //ayni zamanda package id.
+    uint256 packageId = numberOfPackageCreated;
+
+    uint256 newIndex = ownerOfPackage[_address].length;
+    ownerOfPackageIndex[packageId] = newIndex;
+    ownerOfPackage[_address][newIndex] = packageId;
+
+    //generating cards
+    //card1
+    uint256 baseId1 = paniniCardCreater.generateRandomBaseId();
+    uint256 tokenId1 = mintCardWithBaseId(_address, baseId1);
+    //card2
+    uint256 baseId2 = paniniCardCreater.generateRandomBaseId();
+    uint256 tokenId2 = mintCardWithBaseId(_address, baseId2);
+    //card3
+    uint256 baseId3 = paniniCardCreater.generateRandomBaseId();
+    uint256 tokenId3 = mintCardWithBaseId(_address, baseId3);
+    //card4
+    uint256 baseId4 = paniniCardCreater.generateRandomBaseId();
+    uint256 tokenId4 = mintCardWithBaseId(_address, baseId4);
+    //card5
+    uint256 baseId5 = paniniCardCreater.generateRandomBaseId();
+    uint256 tokenId5 = mintCardWithBaseId(_address, baseId5);
+
+    createdPackages[packageId] = CardPackage.Data(packageId, _address, tokenId1, tokenId2, tokenId3, tokenId4, tokenId5);
+
+  }
+
+  function packageExists(uint256 _packageId) public view returns(bool) {        
+    if(createdPackages[_packageId].id != 0) {
+      return true;
+    }
+    return false;
+  }
+
+  function isOwnerOfPackage(uint256 _packageId) public view returns(bool isOwner) {
+    if(packageExists(_packageId)) {
+      if(msg.sender == createdPackages[_packageId].owner) {
+        isOwner = true;
+      }
+    }
+  }
+
+  function removePackage(uint256 _packageId) internal { 
+    if(isOwnerOfPackage(_packageId)) { 
+      // ownerOfPackage[msg.sender].length must be greater then 0
+
+      //delete from ownerOfPackage
+      //get indexes and id
+      uint256 index = ownerOfPackageIndex[_packageId];//1
+      uint256 lastIndex = ownerOfPackage[msg.sender].length - 1;//6
+      uint256 lastPackageId = ownerOfPackage[msg.sender][lastIndex];//4, _packageId:2
+      //move package id in owner arr
+      ownerOfPackage[msg.sender][index] = lastPackageId; // arr[1] = 4
+      ownerOfPackage[msg.sender][lastIndex] = 0; // arr[6] = 0
+      ownerOfPackage[msg.sender].length--; // length--
+      //move index in hash.
+      ownerOfPackageIndex[_packageId] = 0; // hash[2] = 0
+      ownerOfPackageIndex[lastPackageId] = index; //hash[4] = 1
+
+      delete createdPackages[_packageId];
+
+    }
+  }
+
+
+  //fiyatlar sonradan degistirilemesin?
+  function computePriceOfPackage(uint _numberOfPackage) public view returns(uint256 price) {
+   //initial price
+   if(numberOfPackageCreated <= 100/*TODO: && now < paniniState.presaledEndDate*/) {
+    uint remaining = 100 - numberOfPackageCreated;
+    //to do: sadece presale icin olacak.
+    if(_numberOfPackage < remaining ) {
+      //TO DO: check owerflow?
+      price = _numberOfPackage * prices.initial;
+    } else {
+      price = (remaining * prices.initial) + ((_numberOfPackage - remaining) * prices.normal);
+    } 
+
+    //normal price
+    } else {
+      price = _numberOfPackage * prices.normal;
+    }
+    //TO DO: ozel gun ise fiyat belirle
+    //else if .. {}
+
+
+  }
+  
 }
 
 
@@ -705,7 +749,7 @@ contract PaniniMarket {
 }
 
 //TODO: bu contract'a balance yuklenmeli.
-contract UsingMarket is UsingCard{
+contract UsingMarket is UsingCardPackage{
   using Auction for Auction.Data;
 
   event CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
@@ -867,25 +911,55 @@ contract UsingMarket is UsingCard{
 //#########################################
 //###            PLAYERS                ###
 //#########################################
-//server'da register.
-//bir liste tut serverda
 library Player {
 
   struct Data {
-  //bence bunlara gerek yok.
-  //  uint256 id; // adress olabilir, yada id kalsın. bakarız.
-  //  address owner; // address olarak degistirildi.
+    uint256 id; // adress olabilir, yada id kalsın. bakarız.
+    address owner; // address olarak degistirildi.
     string name;
     uint256 numberOfStars;
-
-    //server'da tutulacak. 
-    //TODO: nasil goruntuleyecek? nasil serverda tutulacak?
-    // emit (address, cardId, baseId)?
     //baseId -> cardIndex-tokenId
-//    mapping(uint256 => uint256[]) animalCards;
+    mapping(uint256 => uint256[]) animalCards;
     //cardId -> index of animalCards[baseId]
-//    mapping(uint256 => uint256) animalCardsIndex;    
+    mapping(uint256 => uint256) animalCardsIndex;    
   }
+
+
+  // require carId != 0;
+  // oyuncu card'a sahip mi.
+  function hasCard(Data storage self, uint256 _baseId, uint256 _cardId ) public view returns(bool) {
+    require (_cardId != 0 ); // !hasCard(...) _cardId = 0 ile cagrilirsa true dondurmesin. Bunun yerine islemi gerceklestirmesin.        
+    if(self.animalCards[_baseId].length != 0) {
+      uint256 cardIndex = self.animalCardsIndex[_cardId];
+      //bu kartin sahibi mi;                
+      if(self.animalCards[_baseId][cardIndex] == _cardId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+
+  function addCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
+    //bu card var ekli degilse ve cardId 0 degil ise.
+    self.animalCardsIndex[_cardId] = self.animalCards[_baseId].length;
+    self.animalCards[_baseId].push(_cardId); 
+    
+  }
+
+  function removeCard(Data storage self, uint256 _baseId, uint256 _cardId) internal {
+    //TODO CONTROL lValue is not (0 -1)
+    uint256 cardIndex = self.animalCardsIndex[_cardId];
+    uint256 lastCardIndex = self.animalCards[_baseId].length - 1;
+    uint256 lastCard = self.animalCards[_baseId][lastCardIndex];
+
+    self.animalCards[_baseId][cardIndex] = lastCard;
+    self.animalCards[_baseId][lastCardIndex] = 0;
+
+    self.animalCards[_baseId].length--;
+    self.animalCardsIndex[_cardId] = 0;
+    self.animalCardsIndex[lastCard] = cardIndex;
+  }    
 }
 
 //TODO: approve'du vs bunun gibi metodlara bir el atilacak.
@@ -895,10 +969,11 @@ library Player {
 contract UsingPlayer is UsingMarket{
   using Player for Player.Data;
   mapping (address => Player.Data) players;
+
   uint256 numberOfPlayer;
 
   function UsingPlayer() public {
-
+    numberOfPlayer = 0;
   }
 
   modifier __isPlayer() {
@@ -914,20 +989,65 @@ contract UsingPlayer is UsingMarket{
     require(players[msg.sender].id == 0);
     numberOfPlayer = numberOfPlayer + 1;
     players[msg.sender].id = numberOfPlayer;
-//    players[msg.sender].owner = msg.sender;
+    players[msg.sender].owner = msg.sender;
     players[msg.sender].name = _name;
     //5x card 
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
+    addRandomCardToPlayer(msg.sender);
+    addRandomCardToPlayer(msg.sender);
+    addRandomCardToPlayer(msg.sender);
+    addRandomCardToPlayer(msg.sender);
+    addRandomCardToPlayer(msg.sender);
   }    
 
   function getPlayerName() __isPlayer public view returns(string) {
     return players[msg.sender].name;
   }
 
+  //checks-1: is card exists.
+  //checks-2: is address is player
+  function addCardToPlayer(address _address, uint256 _cardId) internal {
+    isPlayer(_address);
+    if(exists(_cardId)) {
+      uint256 baseId = animalCards[_cardId].baseId;
+      addCardToPlayer(_address, _cardId, baseId);
+    }        
+  }
+
+  function addCardToPlayer(address _address, uint256 _cardId, uint256 _baseId) internal {
+    if (!players[_address].hasCard(_baseId, _cardId)) {
+      players[_address].addCard(_baseId, _cardId);
+      animalCards[_cardId].owner = players[_address].owner;        
+      players[_address].numberOfStars = players[_address].numberOfStars + 1; // simdilik kart sayisi olsun.             
+    }
+  }
+
+
+  //checks-1: is card exists.
+  //checks-2: is address is player
+  function removeCardFromPlayer(address _address, uint256 _cardId) internal {
+    isPlayer(_address);
+    if(exists(_cardId)) {
+      uint256 baseId = animalCards[_cardId].baseId;
+      removeCardFromPlayer(_address, _cardId, baseId);
+    }        
+  }
+
+  function removeCardFromPlayer(address _address, uint256 _cardId, uint256 _baseId) internal {
+    if(players[_address].hasCard(_baseId, _cardId)) {
+      players[_address].removeCard(_baseId, _cardId);
+      animalCards[_cardId].owner = players[_address].owner;        
+      players[_address].numberOfStars = players[_address].numberOfStars - 1; // simdilik kart sayisi olsun.      
+    }
+  }
+
+
+  function addRandomCardToPlayer(address _address) internal {
+    isPlayer(_address);
+    uint256 baseId = generateRandomBaseId();
+    //kart'in uretilmesi.
+    uint256 cardId = mintCardWithBaseId(_address, baseId);
+    addCardToPlayer(_address, cardId, baseId);
+  }
 
   //bu method value degeri girilerek web3 tarafinda cagrilacak.
   function buyPackage(uint256 _numberOfPackage) __isPlayer public payable {
@@ -935,36 +1055,36 @@ contract UsingPlayer is UsingMarket{
 
     uint256 price = computePriceOfPackage(_numberOfPackage);
     require (price == msg.value);
+    distributeBalance(msg.value);        
 
-    for(uint256 i = 0; i < _numberOfPackage; i++) {
-      (uint256 baseId1, uint256 baseId2, uint256 baseId3, uint256 baseId4, uint256 baseId5) 
-        = createPackage(msg.sender);
-      _mintCardWithBaseId(msg.sender, baseId1);
-      _mintCardWithBaseId(msg.sender, baseId2);
-      _mintCardWithBaseId(msg.sender, baseId3);
-      _mintCardWithBaseId(msg.sender, baseId4);
-      _mintCardWithBaseId(msg.sender, baseId5);
-    }
-    //TODO: bu distributeBalance artik paniniState'de. El atilacak.
-    paniniController.distributeBalance(msg.value);        
+    createPackage(msg.sender);
+
     mutex.left();
+  }
+
+  function openPackage(uint256 _packageId) __isPlayer __whenNotPresaled public {
+    //paket'i var ise 
+    if(isOwnerOfPackage(_packageId) /*TODO: && zamani gelmis mi? */) {
+      CardPackage.Data storage package = createdPackages[_packageId];
+      //remove first
+      removePackage(_packageId);
+
+      addCardToPlayer(msg.sender, package.card1);
+      addCardToPlayer(msg.sender, package.card2);
+      addCardToPlayer(msg.sender, package.card3);
+      addCardToPlayer(msg.sender, package.card4);
+      addCardToPlayer(msg.sender, package.card5);
+    }       
   }
 
 //###################
 //     market
 //###################
 
-
-// TODO: CONT. with market methods...
-// TODO: CONT. with market methods...
-// TODO: CONT. with market methods...
-// TODO: CONT. with market methods...
-
-
 //TODO: player'in datasindan silme + guvenlik.
 function createAuction(uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) __isPlayer public {
 
-  uint256 baseId = cardIdToBaseId[_cardId];        
+  uint256 baseId = animalCards[_cardId].baseId;        
   players[msg.sender].removeCard(baseId, _cardId);        
 
   //TODO: numberOfStars icin metod yazilacak.
@@ -1024,7 +1144,7 @@ function bid(uint256 _cardId, uint256 _amount) __isPlayer public payable{
   //compute cut of 
   uint256 cutOf = computeCut(currentPrice);
   // transfer cut of to contract
-  paniniController.distributeBalance(cutOf);        
+  distributeBalance(cutOf);        
 
   currentPrice -= cutOf;
   //transfer owner to currentPrice
@@ -1034,9 +1154,80 @@ function bid(uint256 _cardId, uint256 _amount) __isPlayer public payable{
   mutex.left();
 }
 
-/*
-// TODO: bu method degistirilecek. belkide gerek yok. Token standartinin extend hali sanki address -> token list veriyordu.
-// sonrada kontrol edilecek ve eklenecek
+function balanceOf(address _owner) public view returns (uint256) {
+  return super.balanceOf(_owner);
+}
+
+function approve(address _to, uint256 _cardId) public {
+  // eger auction'da ise token approve yapamamali.
+  // card sahibini kontrol etmek yeterli.
+  uint256 baseId = animalCards[_cardId].baseId;
+  players[msg.sender].hasCard(baseId, _cardId);        
+  super.approve(_to, _cardId);
+}
+
+function clearApproval(address _owner, uint256 _cardId) internal {
+  // eger auction'da ise token clear approve yapamamali.
+  // card sahibini kontrol etmek yeterli.
+  uint256 baseId = animalCards[_cardId].baseId;
+  players[msg.sender].hasCard(baseId, _cardId);        
+  super.clearApproval(_owner, _cardId);
+}
+
+function getApproved(uint256 _cardId) public view returns (address) {
+  return super.getApproved(_cardId);
+}
+
+//TO DO: bazi metodlar disari kapanacak. Bunun disaridan kullanilmasini istemiyoruz mesela.
+function transferFrom(address _from, address _to, uint256 _cardId) public {
+  super.transferFrom(_from, _to, _cardId);
+}        
+
+function safeTransferFrom(address _from, address _to, uint256 _cardId) public {
+  safeTransferFrom(_from, _to, _cardId, "");        
+}
+
+function safeTransferFrom(address _from, address _to, uint256 _cardId, bytes _data) public {
+  super.safeTransferFrom(_from, _to, _cardId, _data);
+  //cart sahibini degistir.
+  animalCards[_cardId].owner = players[_to].owner;
+  //buradaki tasima islemleri.
+  // remove card from previous player
+  // add card to other player
+  uint256 baseId = animalCards[_cardId].baseId;
+  uint256 cardId = _cardId;
+  players[_from].removeCard(baseId, cardId);
+  players[_to].addCard(baseId, cardId);
+
+}
+
+
+// name and sayisi
+function getMyCard(uint256 _cardId) __isPlayer public view returns(string, uint256, string) {
+  uint256 count = 0;
+  string memory name = "";        
+  string memory err = "";        
+  //kart var mı yani token var mi? : token yok ise baseId = 0 gelecektir.
+  uint256 baseId = animalCards[_cardId].baseId;
+  if (existAnimalCardBase(baseId)) {
+    name = animalCardBase[baseId].name;                    
+    //cont = players[msg.sender].hasCard(baseId);
+    //kartin sahibi mi?
+    if( msg.sender == animalCards[_cardId].owner) {
+      count = players[msg.sender].animalCards[baseId].length;           
+
+      } else {
+        //TO DO: get message from struct of messages.
+        err = "You are not owner of this card."; 
+      }
+      } else {
+        //TO DO: get message from struct of messages.
+        err = "There is not card with this id."; 
+      }
+
+      return (name, count, err);        
+    }
+
     function getMyAllCardIds() __isPlayer public view returns(uint256[]) {
 
       uint256[] memory cards = new uint256[](animalCardBase.length);
@@ -1044,7 +1235,7 @@ function bid(uint256 _cardId, uint256 _amount) __isPlayer public payable{
         cards[i] = players[msg.sender].animalCards[i].length;
       }
       return cards;
-    }*/
+    }
 
     //TODO: numberOfStars calculation function.
 
@@ -1433,22 +1624,12 @@ function claimShareholderOwnership() public {
 
 contract PaniniController is PaniniDevAccounts, UsingShareholder {
 
-  PaniniBase paniniBase;
   PaniniState paniniState;
-  PaniniCardBase paniniCardBase;
- 
-  modifier __onlyIfPaniniBase{
+  PaniniCardCreater paniniCardCreater;
+
+  modifier __onlyIfPaniniState {
     require (msg.sender == address(paniniState));
     _;
-  }
-
-
-  //1 kez set edilebilsin.
-  function attachPaniniBase(address _address) public {
-    if( address(paniniState) == address(0) && _address != address(0) ) {
-      paniniBase = PaniniBase(_address);       
-      paniniBase.attachPaniniController(address(this));
-    }
   }
   
   //1 kez set edilebilsin.
@@ -1460,15 +1641,15 @@ contract PaniniController is PaniniDevAccounts, UsingShareholder {
   }
 
   //1 kez set edilebilsin.
-  function attachPaniniCardBase(address _address) public {
-    if( address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = PaniniCardBase(_address);       
-      paniniCardBase.attachPaniniController(address(this));
+  function attachPaniniCardCreater(address _address) public {
+    if( address(paniniCardCreater) == address(0) && _address != address(0) ) {
+      paniniCardCreater = PaniniState(_address);       
+      paniniCardCreater.attachPaniniController(address(this));
     }
   }
 
   
-  function distributeBalance(uint256 _amount) __onlyIfPaniniBase public {
+  function distributeBalance(uint256 _amount) __onlyIfPaniniState public {
     _distributeBalance(_amount);
   }
   
@@ -1514,7 +1695,7 @@ contract PaniniController is PaniniDevAccounts, UsingShareholder {
   }
   
   function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
-    paniniCardBase.createAnimalCardBase(_name, _health, _weigth, _speed, _regionIndex, _rarity );
+    paniniCardCreater.createAnimalCardBase(_name, _health, _weigth, _speed, _regionIndex, _rarity );
   }
   
 
