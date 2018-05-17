@@ -249,6 +249,24 @@ contract PaniniERC721Token is ERC721BasicToken {
 }
 
 
+contract AttachingPaniniController {
+
+  PaniniController paniniController;
+
+  modifier __onlyIfPaniniController {
+    require (msg.sender == address(paniniController));
+    _;
+  }
+
+  //1 kere set edilebilsin
+  function attachPaniniController(address _address) public {
+    if(address(paniniController) == address(0) && _address != address(0) ) {
+      paniniController = PaniniController(_address);
+    }      
+  }
+
+}
+
 contract PaniniState is AttachingPaniniController {
 
   bool paused;
@@ -362,7 +380,7 @@ library AnimalCardBase {
     return (self.id, self.name, self.health, self.weigth, self.speed, regionIndex, self.rarity);
   }
 
-  function fromTuple(AnimalCardBase.Data self, uint256 _id, string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity) internal {
+  function fromTuple(AnimalCardBase.Data self, uint256 _id, string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity) internal pure {
 
       self.id = _id;
       self.name = _name;
@@ -418,21 +436,21 @@ library AnimalCardBase {
 
   function initAnimalCardBase() internal {
     //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
-    _createAnimalCardBase('empty', 0, 0, 0, AnimalCardBase.Region.AFRICA, 0 );        
+    _createAnimalCardBase('empty', 0, 0, 0, 2, 0 );        
 
-    _createAnimalCardBase('fil', 1000, 3000, 60, AnimalCardBase.Region.AFRICA, 14 );        
-    _createAnimalCardBase('at', 400, 500, 90, AnimalCardBase.Region.ASIA, 22 );        
-    _createAnimalCardBase('tavsan', 20, 2, 80, AnimalCardBase.Region.EUROPE, 55 );        
-    _createAnimalCardBase('aslan', 200, 200, 80, AnimalCardBase.Region.AFRICA, 21 );        
+    _createAnimalCardBase('fil', 1000, 3000, 60, 2, 14 );        
+    _createAnimalCardBase('at', 400, 500, 90, 2, 22 );        
+    _createAnimalCardBase('tavsan', 20, 2, 80, 7, 55 );        
+    _createAnimalCardBase('aslan', 200, 200, 80, 2, 21 );        
 
-    _createAnimalCardBase('balina', 10000, 30000, 40, AnimalCardBase.Region.OCEAN, 14 );        
-    _createAnimalCardBase('yunus', 1000, 300, 80, AnimalCardBase.Region.OCEAN, 25 );        
-    _createAnimalCardBase('kilic baligi', 100, 40, 140, AnimalCardBase.Region.OCEAN, 5 );        
+    _createAnimalCardBase('balina', 10000, 30000, 40, 8, 14 );        
+    _createAnimalCardBase('yunus', 1000, 300, 80, 8, 25 );        
+    _createAnimalCardBase('kilic baligi', 100, 40, 140, 8, 5 );        
 
-    _createAnimalCardBase('kartal', 100, 15, 100, AnimalCardBase.Region.ASIA, 25 );        
-    _createAnimalCardBase('guvercin', 10, 1, 30, AnimalCardBase.Region.SOUTH_AMERICA, 24 );        
+    _createAnimalCardBase('kartal', 100, 15, 100, 1, 25 );        
+    _createAnimalCardBase('guvercin', 10, 1, 30, 5, 24 );        
 
-    _createAnimalCardBase('karinca', 1, 1, 1, AnimalCardBase.Region.EUROPE, 43 );        
+    _createAnimalCardBase('karinca', 1, 1, 1, 7, 43 );        
 
   }
 
@@ -445,16 +463,14 @@ library AnimalCardBase {
   }
 
   //usuable card id starts with 1.
-  function _createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, AnimalCardBase.Region _region, uint256 _rarity ) internal{
+  function _createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) internal{
     uint256 id = animalCardBaseList.length;
-    animalCardBaseList.push(AnimalCardBase.Data(id, _name, _health, _weigth, _speed, _region, _rarity));
-    CreatedAnimalCard(id, _name, _health, _weigth, _speed, _region, _rarity);
+    emit CreatedAnimalCard(id, _name, _health, _weigth, _speed, _regionIndex, _rarity);
   }
 
   // usuable card id starts with 1.
   // __onlyIfPaniniController
   function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __onlyIfPaniniController public {
-    uint256 id = animalCardBaseList.length;
     AnimalCardBase.Region region = AnimalCardBase.Region.ASIA;
     if(_regionIndex == 2) {
       region = AnimalCardBase.Region.AFRICA;  
@@ -471,7 +487,7 @@ library AnimalCardBase {
     } else if(_regionIndex == 8) {
       region = AnimalCardBase.Region.OCEAN;  
     }
-    _createAnimalCardBase(id, _name, _health, _weigth, _speed, region, _rarity);
+    _createAnimalCardBase(_name, _health, _weigth, _speed, _regionIndex, _rarity);
   }
 
   //returns index of animalCardBase
@@ -544,7 +560,7 @@ contract PaniniCardPackage {
     uint256 baseId3 = paniniCardBase.generateRandomBaseId();
     uint256 baseId4 = paniniCardBase.generateRandomBaseId();
     uint256 baseId5 = paniniCardBase.generateRandomBaseId();
-    PackageCreated(packageId, _address, baseId1, baseId2, baseId3, baseId4, baseId5);
+    emit PackageCreated(packageId, _address, baseId1, baseId2, baseId3, baseId4, baseId5);
     return (baseId1, baseId2, baseId3, baseId4, baseId5);
   }
 
@@ -574,144 +590,16 @@ contract PaniniCardPackage {
 
 
 
-
-/**
- * The PaniniBase 
- */
- contract PaniniBase is PaniniState {
-  using Mutex for Mutex.Data;
-
-  PaniniState paniniState;
-  PaniniCardBase paniniCardBase;
-  PaniniCardPackage paniniCardPackage;
-
-  //for security
-  Mutex.Data mutex;
-
-  function PaniniBase () public{
-    mutex = Mutex.Data(false);
-
-  }  
-
-  //1 kere set edilebilsin
-  function setPaniniState(address _address) public {
-    if(address(paniniState) == address(0) && _address != address(0) ) {
-      paniniState = PaniniState(_address);
-    }      
-  }
-
-  //1 kere set edilebilsin
-  function setPaniniCardBase(address _address) public {
-    if(address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = PaniniCardBase(_address);
-    }      
-  }
-
-  //1 kere set edilebilsin
-  function setPaniniCardPackage(address _address) public {
-    if(address(paniniCardPackage) == address(0) && _address != address(0) ) {
-      paniniCardPackage = PaniniCardPackage(_address);
-    }      
-  }
-
-  
-}
-
-
-
-contract UsingCard is PaniniERC721Token, PaniniBase {
-  //ANIMAL CARDS
-  // Bu deger her card uretildiginde emit ile server tarafinda tutulacak. Ve arayuzde oradan gosterilecek.
-  //mapping (uint256 => uint256[]) baseIdToCardIdList;
-
-  uint256 lastMintedCardId; // listeye gerek yok. eger liste olsaydı su sekilde olacaktı [0,1,2,3,4,5,6..n]  
-  mapping (uint256 => uint256) cardIdToBaseId;
-  //token generate etmek icin;
-  
-
-  function UsingCard() public {
-
-  }
-  
-
-  //cart üretilmesi için.
-  //token kullanacak.
-  //to: token icin. 
-  //baseId: random generated value of basecard index. 
-  function _mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
-    
-    lastMintedCardId++;
-    uint256 cardId = lastMintedCardId;
-    super._mint(_to, cardId);
-    // set baseId of metedata
-    cardIdToBaseId[cardId] = _baseId;
-    return cardId;
-  }
-
-  function _mintRandomCard(address _to) internal returns(uint256) {
-    uint256 baseId = paniniCardBase.generateRandomBaseId();
-    //kart'in uretilmesi.
-    return _mintCardWithBaseId(_address, baseId);
-  }
-
-  function getAnimalCardInfo(uint256 _cardId) internal view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
-    uint256 baseId = cardIdToBaseId(_cardId);
-    if(baseId != 0) {
-      return paniniCardBase.getAnimalCardBaseTupple(baseId);
-    }    
-    return (0,'0',0,0,0,0,0);
-  }
-
-}
-
-
-//#########################################
-//###              MARKET               ###
-//#########################################
-
-library Auction {
-
-  struct Data {
-    address owner;
-    uint256 cardId;
-    uint256 createdTime;
-    uint256 startPrice;
-    uint256 endPrice;
-    uint256 duration; 
-
-  }
-
-}
-
-
-contract PaniniMarket {
-  using Auction for Auction.Data;
-
-  // Reference to contract tracking NFT ownership
-  PaniniERC721Token public nft; // panini
-  // Values 0-10,000 map to 0%-100%
-  uint256 public ownerCut;
-
-  function PaniniMarket(address _nftAddress, uint256 _cut) public {
-    //TODO: control address + msg.sender
-    nft = PaniniERC721Token(_nftAddress);
-    ownerCut = _cut;
-  }
-  
-  function getOwnerCut() public view returns(uint256) {
-    return ownerCut;
-  }
-
-}
-
-//TODO: bu contract'a balance yuklenmeli.
-contract UsingMarket is UsingCard{
+contract PaniniMarket is AttachingPaniniController {
   using Auction for Auction.Data;
 
   event CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
   event CancelAuction(address owner, uint256 _cardId);
-  event Bid(address owner, address sender, uint256 _cardId, uint256 currentPrice, uint256 cutof);
-  
+  event Bid(address owner, address sender, uint256 _cardId, uint256 amount);
+
+  // Values 0-10,000 map to 0%-100%
+  uint256 public ownerCut;
+
   //cardId -> Auction
   mapping (uint256 => Auction.Data) auctions;
 
@@ -726,18 +614,29 @@ contract UsingMarket is UsingCard{
   //cardId -> ownerOfAuctionCardIds index
   mapping (uint256 => uint256) ownerOfAuctionCardIdsIndex; // bu kartin bu listedeki yeri.
   
+  // Reference to contract tracking NFT ownership
+  PaniniERC721Token public nft; // panini
 
-  PaniniMarket market;
 
-  //TODO: control address + msg.sender
-  // bir kere set edilmeli? daha sonradan degistirilememeli?
-  function setMarket(address _address) public {
-    market = PaniniMarket(_address);
+  function PaniniMarket() public {
   }
 
-  function getAddress() public view returns(address) {
-    require(address(market) != address(0));        
-    return address(market);
+    //TODO: 1 kez set edilecek sekilde degistirilecek.
+  function setNFT(address _address) public {
+    if(address(nft) == address(0) && _address != address(0) ) {
+      nft = PaniniERC721Token(_address);
+    }
+  }
+
+  //TODO: 1 kez set edilecek sekilde degistirilecek.
+  function setCut(uint256 _cut) public {
+    if(ownerCut == 0 && _cut != 0 ) {
+      ownerCut = _cut;
+    }
+  }
+  
+  function getOwnerCut() public view returns(uint256) {
+    return ownerCut;
   }
 
   function getOwnerOfAuctionFromCardId(uint256 _cardId) public view returns(address) {
@@ -745,8 +644,7 @@ contract UsingMarket is UsingCard{
     return auctions[_cardId].owner;
   }
 
-
-  function addAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) internal {
+  function _addAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) internal {
 
     // daha once uretilmemis ve 0 ile uretilemesin.
     require (auctions[_cardId].cardId == 0 && _cardId != 0);
@@ -764,7 +662,7 @@ contract UsingMarket is UsingCard{
     ownerOfAuctionCardIdsIndex[_cardId] = ownerIndex;
   }
   
-  function removeAuction(address _owner, uint256 _cardId) internal {
+  function _removeAuction(address _owner, uint256 _cardId) internal {
     //silinecek kardin sahibi kendisi olmali.
     require( auctions[_cardId].owner == _owner);
     delete auctions[_cardId];
@@ -789,30 +687,25 @@ contract UsingMarket is UsingCard{
     ownerOfAuctionCardIdsIndex[lastCardId] = index;
   }
 
+  //note: bu metodun cagrildigi yerde cagiran approve yapmali
   function createAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) public {
-    addAuction(_owner, _cardId, _startPrice, _endPrice, _duration);
-    //TODO: tranfer yapilacak. 
-    // bu metodu cagiranda yapilacak(yeri burasi degil.). markete approve yapacak.
+    //TODO CHECK: owner + cardid.
+    _addAuction(_owner, _cardId, _startPrice, _endPrice, _duration);
+    nft.safeTransferFrom(_owner, address(this), _cardId);
+    emit CreateAuction(_owner, _cardId, _startPrice, _endPrice, _duration );
   }
 
   function cancelAuction(address _owner, uint256 _cardId) public {
-    removeAuction(_owner, _cardId);
-    //TODO: tranfer yapilacak. 
-    // bu metodu cagiranda yapilacak(yeri burasi degil.). approve iptal edecek.
+    _removeAuction(_owner, _cardId);
+    nft.approve(_owner, _cardId);
+    emit CancelAuction(_owner, _cardId);
   }
 
   function bid(address _bidder, uint256 _cardId, uint256 _amount) public {
-    //TODO: diger kontroller.
-    // 
     address owner = auctions[_cardId].owner;
-    removeAuction(owner, _cardId); 
-
-    //TODO: tranfer yapilacak. 
-    // 1. asama: ilk once contract kendine transfer yapacak.
-    safeTransferFrom( owner, getAddress(), _cardId);
-    // 2. asama: contract bidder'a approve verecek.
-    approve(_bidder, _cardId);
-    // 3. asama: bu metodu cagiranda yapilacak(yeri burasi degil.). kendine transfer yapacak.
+    _removeAuction(owner, _cardId); 
+    nft.approve(_bidder, _cardId);
+    emit Bid(owner, _bidder, _cardId, _amount);
 
   }
 
@@ -853,28 +746,141 @@ contract UsingMarket is UsingCard{
     //  currency (at 128-bits), and ownerCut <= 10000 (see the require()
       //  statement in the ClockAuction constructor). The result of this
   //  function is always guaranteed to be <= _price.
-  return _price * market.getOwnerCut() / 10000;
+  return _price * getOwnerCut() / 10000;
 
   }
 
-
-//TODO: function: calculate bid amount
-//TODO: function: compute cutof.
-
 }
 
+
+/**
+ * The PaniniBase 
+ */
+ contract PaniniBase is PaniniState, PaniniERC721Token {
+  using Mutex for Mutex.Data;
+
+  PaniniState paniniState;
+  PaniniCardBase paniniCardBase;
+  PaniniCardPackage paniniCardPackage;
+  PaniniMarket paniniMarket;
+
+  //for security
+  Mutex.Data mutex;
+
+  function PaniniBase() public{
+    mutex = Mutex.Data(false);
+
+  }  
+
+  //1 kere set edilebilsin
+  function setPaniniState(address _address) public {
+    if(address(paniniState) == address(0) && _address != address(0) ) {
+      paniniState = PaniniState(_address);
+    }      
+  }
+
+  //1 kere set edilebilsin
+  function setPaniniCardBase(address _address) public {
+    if(address(paniniCardBase) == address(0) && _address != address(0) ) {
+      paniniCardBase = PaniniCardBase(_address);
+    }      
+  }
+
+  //1 kere set edilebilsin
+  function setPaniniCardPackage(address _address) public {
+    if(address(paniniCardPackage) == address(0) && _address != address(0) ) {
+      paniniCardPackage = PaniniCardPackage(_address);
+    }      
+  }
+
+  //1 kere set edilebilsin
+  function setPaniniMarket(address _address) public {
+    if(address(paniniMarket) == address(0) && _address != address(0) ) {
+      paniniMarket = PaniniMarket(_address);
+      //TODO: 1 kere set edilebilsin bu methodlar.
+      paniniMarket.setNFT(address(this));
+      paniniMarket.setCut(1000); //%10
+      
+    }      
+  }
+  
+}
+
+
+
+contract UsingCard is PaniniBase {
+  //ANIMAL CARDS
+  // Bu deger her card uretildiginde emit ile server tarafinda tutulacak. Ve arayuzde oradan gosterilecek.
+  //mapping (uint256 => uint256[]) baseIdToCardIdList;
+
+  uint256 lastMintedCardId; // listeye gerek yok. eger liste olsaydı su sekilde olacaktı [0,1,2,3,4,5,6..n]  
+  mapping (uint256 => uint256) cardIdToBaseId;
+  //token generate etmek icin;
+  
+
+  function UsingCard() public {
+
+  }
+  
+
+  //cart üretilmesi için.
+  //token kullanacak.
+  //to: token icin. 
+  //baseId: random generated value of basecard index. 
+  function _mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
+    
+    lastMintedCardId++;
+    uint256 cardId = lastMintedCardId;
+    super._mint(_to, cardId);
+    // set baseId of metedata
+    cardIdToBaseId[cardId] = _baseId;
+    return cardId;
+  }
+
+  function _mintRandomCard(address _to) internal returns(uint256) {
+    uint256 baseId = paniniCardBase.generateRandomBaseId();
+    //kart'in uretilmesi.
+    return _mintCardWithBaseId(_to, baseId);
+  }
+/*
+  function getAnimalCardInfo(uint256 _cardId) public view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
+    uint256 baseId = cardIdToBaseId[_cardId];
+    if(baseId != 0) {
+      return paniniCardBase.getAnimalCardBaseTupple(baseId);
+    }    
+    return (0,'0',0,0,0,0,0);
+  }
+*/
+}
+
+
+//#########################################
+//###              MARKET               ###
+//#########################################
+
+library Auction {
+
+  struct Data {
+    address owner;
+    uint256 cardId;
+    uint256 createdTime;
+    uint256 startPrice;
+    uint256 endPrice;
+    uint256 duration; 
+
+  }
+
+}
 
 //#########################################
 //###            PLAYERS                ###
 //#########################################
 //server'da register.
 //bir liste tut serverda
-library Player {
+library Player{
 
   struct Data {
-  //bence bunlara gerek yok.
-  //  uint256 id; // adress olabilir, yada id kalsın. bakarız.
-  //  address owner; // address olarak degistirildi.
+    uint256 id; 
     string name;
     uint256 numberOfStars;
 
@@ -892,7 +898,7 @@ library Player {
 // sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
 //   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
 //  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
-contract UsingPlayer is UsingMarket{
+contract UsingPlayer is UsingCard{
   using Player for Player.Data;
   mapping (address => Player.Data) players;
   uint256 numberOfPlayer;
@@ -933,12 +939,17 @@ contract UsingPlayer is UsingMarket{
   function buyPackage(uint256 _numberOfPackage) __isPlayer public payable {
     mutex.enter();
 
-    uint256 price = computePriceOfPackage(_numberOfPackage);
+    uint256 price = paniniCardPackage.computePriceOfPackage(_numberOfPackage);
     require (price == msg.value);
-
+    uint256 baseId1;
+    uint256 baseId2;
+    uint256 baseId3;
+    uint256 baseId4;
+    uint256 baseId5;
+    
     for(uint256 i = 0; i < _numberOfPackage; i++) {
-      (uint256 baseId1, uint256 baseId2, uint256 baseId3, uint256 baseId4, uint256 baseId5) 
-        = createPackage(msg.sender);
+      (baseId1, baseId2, baseId3, baseId4, baseId5) 
+        = paniniCardPackage.createPackage(msg.sender);
       _mintCardWithBaseId(msg.sender, baseId1);
       _mintCardWithBaseId(msg.sender, baseId2);
       _mintCardWithBaseId(msg.sender, baseId3);
@@ -964,73 +975,41 @@ contract UsingPlayer is UsingMarket{
 //TODO: player'in datasindan silme + guvenlik.
 function createAuction(uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) __isPlayer public {
 
-  uint256 baseId = cardIdToBaseId[_cardId];        
-  players[msg.sender].removeCard(baseId, _cardId);        
-
-  //TODO: numberOfStars icin metod yazilacak.
-  players[msg.sender].numberOfStars = players[msg.sender].numberOfStars - 1;
-
-  //TODO: sorun olur mu bu sekilde? guvenlik acigi var mi kontrol etmek lazim.       
-  //yetkiyi contract'a verdi. 
-  //bid isleminde contract once kendine transfer edecek. (nft ile)
-  //daha sonra yetkiyi bid islemini yapana verecek.
-  //bid islemini yapan da en son tranferi kendine yaparak tamamlayacak.
-  //TODO: getAddress -> returns panini address
-  approve(address(this), _cardId);
-  //card sahibi contract olmali.
-  animalCards[_cardId].owner = address(this);
-
-  super.createAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration);
-  emit CreateAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration );
+  approve(address(paniniMarket), _cardId);
+  paniniMarket.createAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration);
 
 }
 
 //TODO: player'in datasindan ekleme + guvenlik.
 function cancelAuction(uint256 _cardId) __isPlayer public {
 
-  uint256 baseId = animalCards[_cardId].baseId;
-  players[msg.sender].addCard(baseId, _cardId);        
-  animalCards[_cardId].owner = msg.sender;          
-
-  //TODO: numberOfStars icin metod yazilacak.
-  players[msg.sender].numberOfStars = players[msg.sender].numberOfStars + 1;
-
-  super.cancelAuction(msg.sender, _cardId);
-
+  paniniMarket.cancelAuction(msg.sender, _cardId);
+  safeTransferFrom(address(paniniMarket), msg.sender, _cardId);
   clearApproval(msg.sender, _cardId);
-  emit CancelAuction(msg.sender, _cardId);
 }
 
 //TODO: player'in datasina ekleme + guvenlik.
 function bid(uint256 _cardId, uint256 _amount) __isPlayer public payable{
   mutex.enter();
 
-  uint256 currentPrice = computeCurrentPrice(_cardId);
+  uint256 currentPrice = paniniMarket.computeCurrentPrice(_cardId);
   require (currentPrice == msg.value);
 
-  uint256 baseId = animalCards[_cardId].baseId;
-  players[msg.sender].addCard(baseId, _cardId);        
-  animalCards[_cardId].owner = msg.sender;          
+  paniniMarket.bid(msg.sender, _cardId, _amount);
 
-  //TODO: numberOfStars icin metod yazilacak.
-  players[msg.sender].numberOfStars = players[msg.sender].numberOfStars + 1;
-
-  super.bid(msg.sender, _cardId, _amount);
-
-  safeTransferFrom( address(this), msg.sender, _cardId);
+  safeTransferFrom( address(paniniMarket), msg.sender, _cardId);
 
   //TODO: tranfer yapilacak. 
   //compute current price
   //compute cut of 
-  uint256 cutOf = computeCut(currentPrice);
+  uint256 cutOf = paniniMarket.computeCut(currentPrice);
   // transfer cut of to contract
   paniniController.distributeBalance(cutOf);        
 
   currentPrice -= cutOf;
   //transfer owner to currentPrice
-  address owner = getOwnerOfAuctionFromCardId(_cardId);
+  address owner = paniniMarket.getOwnerOfAuctionFromCardId(_cardId);
   require(owner.call.value(currentPrice)());
-  emit Bid(owner, msg.sender, _cardId, currentPrice, cutOf);
   mutex.left();
 }
 
@@ -1055,7 +1034,7 @@ function bid(uint256 _cardId, uint256 _amount) __isPlayer public payable{
   //#########################################
   contract AAPanini is UsingPlayer{
 
-    function Panini() public {
+    function AAPanini() public {
 
     }
   }
@@ -1521,28 +1500,6 @@ contract PaniniController is PaniniDevAccounts, UsingShareholder {
 
   function () public payable {
 
-  }
-
-}
-
-contract AttachingPaniniController {
-
-  PaniniController paniniController;
-
-  function AttachingPaniniController () {
-    
-  }  
-
-  modifier __onlyIfPaniniController {
-    require (msg.sender == address(paniniController));
-    _;
-  }
-
-  //1 kere set edilebilsin
-  function attachPaniniController(address _address) public {
-    if(address(paniniController) == address(0) && _address != address(0) ) {
-      paniniController = PaniniController(_address);
-    }      
   }
 
 }
