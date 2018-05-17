@@ -260,9 +260,9 @@ contract AttachingPaniniController {
 
   //1 kere set edilebilsin
   function attachPaniniController(address _address) public {
-    if(address(paniniController) == address(0) && _address != address(0) ) {
+    //if(address(paniniController) == address(0) && _address != address(0) ) {
       paniniController = PaniniController(_address);
-    }      
+    //}      
   }
 
 }
