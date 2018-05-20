@@ -635,9 +635,25 @@ contract A_PaniniCardPackage is AttachingA_PaniniController, HasA_PaniniState {
   
 }
 
+//#########################################
+//###              MARKET               ###
+//#########################################
 
+library Auction {
 
-contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState {
+  struct Data {
+    address owner;
+    uint256 cardId;
+    uint256 createdTime;
+    uint256 startPrice;
+    uint256 endPrice;
+    uint256 duration; 
+
+  }
+
+}
+
+contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721Receiver {
   using Auction for Auction.Data;
 
   event CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
@@ -645,7 +661,7 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState {
   event Bid(address owner, address sender, uint256 _cardId, uint256 amount);
 
   // Values 0-10,000 map to 0%-100%
-  uint256 public ownerCut;
+  uint256 ownerCut;
 
   //cardId -> Auction
   mapping (uint256 => Auction.Data) auctions;
@@ -662,12 +678,16 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState {
   mapping (uint256 => uint256) ownerOfAuctionCardIdsIndex; // bu kartin bu listedeki yeri.
   
   // Reference to contract tracking NFT ownership
-  PaniniERC721Token public nft; // panini
+  PaniniERC721Token nft; // panini
 
   function A_PaniniMarket() public {
   }
 
-    //TODO: 1 kez set edilecek sekilde degistirilecek.
+  function onERC721Received(address _from, uint256 _tokenId, bytes _data) public returns(bytes4) {
+    return ERC721_RECEIVED;
+  }
+
+  //TODO: 1 kez set edilecek sekilde degistirilecek.
   function setNFT(address _address) public {
     //if(address(nft) == address(0) && _address != address(0) ) {
       nft = PaniniERC721Token(_address);
@@ -685,10 +705,39 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState {
     return ownerCut;
   }
 
+  function getCardsInAuctions( ) public view returns(uint256[]) {
+    return auctionCardIds;
+  }
+  
+  function getCardsInAuctionsOfOwner( address _owner) public view returns(uint256[]) {
+    return ownerOfAuctionCardIds[_owner];
+  }
+
+  function getAuctionInfo( uint256 _cardId ) public view returns(
+    address,
+    uint256,
+    uint256,
+    uint256,
+    uint256,
+    uint256) {
+
+    require (auctions[_cardId].cardId == _cardId && _cardId != 0);
+    address owner = auctions[_cardId].owner;
+    uint256 cardId = auctions[_cardId].cardId;
+    uint256 createdTime = auctions[_cardId].createdTime;
+    uint256 startPrice = auctions[_cardId].startPrice;
+    uint256 endPrice = auctions[_cardId].endPrice;
+    uint256 duration = auctions[_cardId].duration;    
+    return (owner, cardId, createdTime, startPrice, endPrice, duration);
+  }
+
+
+
   function getOwnerOfAuctionFromCardId(uint256 _cardId) public view returns(address) {
     require (auctions[_cardId].cardId == 0 && _cardId != 0);
     return auctions[_cardId].owner;
   }
+
 
   function _addAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) internal {
 
@@ -735,7 +784,9 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState {
 
   //note: bu metodun cagrildigi yerde cagiran approve yapmali
   function createAuction(address _owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) public {
-    //TODO CHECK: owner + cardid.
+    //is owner of card 
+    require ( nft.ownerOf(_cardId) == _owner );
+    
     _addAuction(_owner, _cardId, _startPrice, _endPrice, _duration);
     nft.safeTransferFrom(_owner, address(this), _cardId);
     emit CreateAuction(_owner, _cardId, _startPrice, _endPrice, _duration );
@@ -893,24 +944,6 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
 
 
 //#########################################
-//###              MARKET               ###
-//#########################################
-
-library Auction {
-
-  struct Data {
-    address owner;
-    uint256 cardId;
-    uint256 createdTime;
-    uint256 startPrice;
-    uint256 endPrice;
-    uint256 duration; 
-
-  }
-
-}
-
-//#########################################
 //###            PLAYERS                ###
 //#########################################
 //server'da register.
@@ -1018,13 +1051,17 @@ function cancelAuction(uint256 _cardId) __isPlayer __whenNotPaused public {
 }
 
 //TODO: player'in datasina ekleme + guvenlik.
-function bid(uint256 _cardId, uint256 _amount) __isPlayer __whenNotPaused public payable{
+function bid(uint256 _cardId) __isPlayer __whenNotPaused public payable{
   mutex.enter();
 
   uint256 currentPrice = paniniMarket.computeCurrentPrice(_cardId);
-  require (currentPrice == msg.value);
+  
+  //Fazla girebilsin. sonra fazlasini geri ver oyuncuya.
+  require (currentPrice <= msg.value);
 
-  paniniMarket.bid(msg.sender, _cardId, _amount);
+  uint256 bidExcess = msg.value - currentPrice;
+
+  paniniMarket.bid(msg.sender, _cardId, msg.value);
 
   safeTransferFrom( address(paniniMarket), msg.sender, _cardId);
 
@@ -1040,6 +1077,10 @@ function bid(uint256 _cardId, uint256 _amount) __isPlayer __whenNotPaused public
   //transfer owner to currentPrice
   address owner = paniniMarket.getOwnerOfAuctionFromCardId(_cardId);
   require(owner.call.value(currentPrice)());
+
+  //fazla girebilecek degieri. Parasi geri verilecek.
+  require(msg.sender.call.value(bidExcess)());
+
   mutex.left();
 }
 
