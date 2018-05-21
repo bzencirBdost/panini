@@ -316,7 +316,8 @@ contract PaniniERC721Token is ERC721BasicToken {
 
 
 contract AttachingA_PaniniController {
-
+  using AddressUtils for address;
+  
   A_PaniniController paniniController;
 
   modifier __onlyIfA_PaniniController {
@@ -325,15 +326,21 @@ contract AttachingA_PaniniController {
   }
 
   //1 kere set edilebilsin
-  function attachA_PaniniController(address _address) public {
-    //if(address(paniniController) == address(0) && _address != address(0) ) {
-      paniniController = A_PaniniController(_address);
-    //}      
+  //msg.sender bir contract olmali.
+  //msg.sender paniniController olmali.
+  function attachA_PaniniController() public {    
+    require(address(paniniController) == address(0));
+    require (msg.sender.isContract() == true);    
+    A_PaniniController candidatePaniniController = A_PaniniController(msg.sender);
+    //require (paniniController.isPaniniController());   
+    paniniController = candidatePaniniController;      
   }
 
 }
 
 contract A_PaniniState is AttachingA_PaniniController {
+
+  bool public isPaniniState = true;
 
   bool paused;
   uint256 presaledEndDate;
@@ -358,9 +365,8 @@ contract A_PaniniState is AttachingA_PaniniController {
 
 }
 
-/**
- * The HasA_PaniniState contract does this and that...
- */
+
+
 contract HasA_PaniniState {
 
   A_PaniniState paniniState;
@@ -376,10 +382,10 @@ contract HasA_PaniniState {
   }
 
   //1 kere set edilebilsin
+  //is paninistate kontrolu paninicontroller'da yapilmakta.
   function setA_PaniniState(address _address) public {
-    //if(address(paniniState) == address(0) && _address != address(0) ) {
-      paniniState = A_PaniniState(_address);
-    //}      
+    require(address(paniniState) == address(0) && _address != address(0) );
+    paniniState = A_PaniniState(_address);
   }
 
   function testA_PaniniState() public view returns(bool) {
@@ -390,7 +396,7 @@ contract HasA_PaniniState {
 
 
 
-library AnimalCardBase {
+library CardBase {
 
   enum Region {
     ASIA,
@@ -417,12 +423,12 @@ library AnimalCardBase {
   }
 
   //returns clone of base card.
-  function clone(AnimalCardBase.Data self) internal pure returns(AnimalCardBase.Data) {
-    return AnimalCardBase.Data(self.id, self.name, self.health, self.weigth, self.speed, self.region, self.rarity);
+  function clone(CardBase.Data self) internal pure returns(CardBase.Data) {
+    return CardBase.Data(self.id, self.name, self.health, self.weigth, self.speed, self.region, self.rarity);
   }
 
   //returns clone of base card.
-  function toTuple(AnimalCardBase.Data self) internal pure returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
+  function toTuple(CardBase.Data self) internal pure returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
 
     uint256 regionIndex = 1; //default ASIA
     if(self.region == Region.AFRICA) {
@@ -443,7 +449,7 @@ library AnimalCardBase {
     return (self.id, self.name, self.health, self.weigth, self.speed, regionIndex, self.rarity);
   }
 
-  function fromTuple(AnimalCardBase.Data self, uint256 _id, string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity) internal pure {
+  function fromTuple(CardBase.Data self, uint256 _id, string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity) internal pure {
 
       self.id = _id;
       self.name = _name;
@@ -474,81 +480,83 @@ library AnimalCardBase {
 }
 
 /**
- * The A_PaniniCardBase contract does this and that...
+ * The A_PaniniCard contract does this and that...
  */
- contract A_PaniniCardBase is AttachingA_PaniniController, HasA_PaniniState {
-  using AnimalCardBase for AnimalCardBase.Data;
+ contract A_PaniniCard is AttachingA_PaniniController, HasA_PaniniState {
+  using CardBase for CardBase.Data;
+
+  bool public isPaniniCard = true;
 
   //server tarafinda her create'te db guncellenecek. Bu sayede base card'larin listesi goruntulenebilecek.
   event CreatedAnimalCard(uint256 id, string name, uint256 health, uint256 weigth, uint256 speed, uint256 regionIndex, uint256 rarity);
   // metedata
-  AnimalCardBase.Data[] animalCardBaseList; 
-
-  function A_PaniniCardBase () public {
-    initAnimalCardBase();
+  CardBase.Data[] cardBaseList; 
+  
+  function A_PaniniCard () public {
+    initCardBase();
   }  
 
-  function initAnimalCardBase() internal {
+  function initCardBase() internal {
        //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
-        _createAnimalCardBase('empty', 0, 0, 0, AnimalCardBase.Region.AFRICA, 0 );        
+        _createCardBase('empty', 0, 0, 0, CardBase.Region.AFRICA, 0 );        
         
-        _createAnimalCardBase('fil', 1000, 3000, 60, AnimalCardBase.Region.AFRICA, 14 );        
-        _createAnimalCardBase('at', 400, 500, 90, AnimalCardBase.Region.ASIA, 22 );        
-        _createAnimalCardBase('tavsan', 20, 2, 80, AnimalCardBase.Region.EUROPE, 55 );        
-        _createAnimalCardBase('aslan', 200, 200, 80, AnimalCardBase.Region.AFRICA, 21 );        
+        _createCardBase('fil', 1000, 3000, 60, CardBase.Region.AFRICA, 14 );        
+        _createCardBase('at', 400, 500, 90, CardBase.Region.ASIA, 22 );        
+        _createCardBase('tavsan', 20, 2, 80, CardBase.Region.EUROPE, 55 );        
+        _createCardBase('aslan', 200, 200, 80, CardBase.Region.AFRICA, 21 );        
 
-        _createAnimalCardBase('balina', 10000, 30000, 40, AnimalCardBase.Region.OCEAN, 14 );        
-        _createAnimalCardBase('yunus', 1000, 300, 80, AnimalCardBase.Region.OCEAN, 25 );        
-        _createAnimalCardBase('kilic baligi', 100, 40, 140, AnimalCardBase.Region.OCEAN, 5 );        
+        _createCardBase('balina', 10000, 30000, 40, CardBase.Region.OCEAN, 14 );        
+        _createCardBase('yunus', 1000, 300, 80, CardBase.Region.OCEAN, 25 );        
+        _createCardBase('kilic baligi', 100, 40, 140, CardBase.Region.OCEAN, 5 );        
 
-        _createAnimalCardBase('kartal', 100, 15, 100, AnimalCardBase.Region.ASIA, 25 );        
-        _createAnimalCardBase('guvercin', 10, 1, 30, AnimalCardBase.Region.SOUTH_AMERICA, 24 );        
+        _createCardBase('kartal', 100, 15, 100, CardBase.Region.ASIA, 25 );        
+        _createCardBase('guvercin', 10, 1, 30, CardBase.Region.SOUTH_AMERICA, 24 );        
 
-        _createAnimalCardBase('karinca', 1, 1, 1, AnimalCardBase.Region.EUROPE, 43 );            
+        _createCardBase('karinca', 1, 1, 1, CardBase.Region.EUROPE, 43 );            
 
   }
 
   // usuable id between 1 to (n-1)
-  function existAnimalCardBase(uint256 _baseId ) public view returns(bool) {
-    if( _baseId > 0 && _baseId <= animalCardBaseList.length) {
+  function existCardBase(uint256 _baseId ) public view returns(bool) {
+    if( _baseId > 0 && _baseId <= cardBaseList.length) {
       return true;
     }
     return false;                
   }
 
   //usuable card id starts with 1.
-  function _createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, AnimalCardBase.Region _region, uint256 _rarity ) internal{
-    uint256 id = animalCardBaseList.length;
-    animalCardBaseList.push(AnimalCardBase.Data(id, _name, _health, _weigth, _speed, _region, _rarity));
+  function _createCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, CardBase.Region _region, uint256 _rarity ) internal{
+    uint256 id = cardBaseList.length;
+    cardBaseList.push(CardBase.Data(id, _name, _health, _weigth, _speed, _region, _rarity));
   }
 
   // usuable card id starts with 1.
   // __onlyIfA_PaniniController
-  function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __onlyIfA_PaniniController public {
-    AnimalCardBase.Region region = AnimalCardBase.Region.ASIA;
+  function createCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __onlyIfA_PaniniController public {
+    CardBase.Region region = CardBase.Region.ASIA;
     if(_regionIndex == 2) {
-      region = AnimalCardBase.Region.AFRICA;  
+      region = CardBase.Region.AFRICA;  
     } else if(_regionIndex == 3) {
-      region = AnimalCardBase.Region.NOURTH_AMERICA;  
+      region = CardBase.Region.NOURTH_AMERICA;  
     } else if(_regionIndex == 4) {
-      region = AnimalCardBase.Region.SOUTH_AMERICA;  
+      region = CardBase.Region.SOUTH_AMERICA;  
     } else if(_regionIndex == 5) {
-      region = AnimalCardBase.Region.ANTARCTICA;  
+      region = CardBase.Region.ANTARCTICA;  
     } else if(_regionIndex == 6) {
-      region = AnimalCardBase.Region.EUROPE;  
+      region = CardBase.Region.EUROPE;  
     } else if(_regionIndex == 7) {
-      region = AnimalCardBase.Region.AUSTRALIA;  
+      region = CardBase.Region.AUSTRALIA;  
     } else if(_regionIndex == 8) {
-      region = AnimalCardBase.Region.OCEAN;  
+      region = CardBase.Region.OCEAN;  
     }
-    _createAnimalCardBase(_name, _health, _weigth, _speed, region, _rarity);
+    _createCardBase(_name, _health, _weigth, _speed, region, _rarity);
   }
 
   //returns index of animalCardBase
   function generateRandomBaseId(uint256 random) public view returns (uint256) {
     //private test for random
-    uint256 id = animalCardBaseList.length;
-    uint256 delta = animalCardBaseList.length;
+    uint256 id = cardBaseList.length;
+    uint256 delta = cardBaseList.length;
     require(delta > 0);
 
     id = (  random  * ( id + 2 ) * ( 3 * id + 2 ) ) % delta;
@@ -558,9 +566,9 @@ library AnimalCardBase {
     //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
   }
 
-  function getAnimalCardBaseTupple(uint256 _baseId) public view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
-    require( _baseId > 0 && _baseId <= animalCardBaseList.length);
-    return animalCardBaseList[_baseId].toTuple();
+  function getCardBaseTupple(uint256 _baseId) public view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
+    require( _baseId > 0 && _baseId <= cardBaseList.length);
+    return cardBaseList[_baseId].toTuple();
   }
   
 }
@@ -577,24 +585,26 @@ contract A_PaniniCardPackage is AttachingA_PaniniController, HasA_PaniniState {
     uint256 special;
   }
 
-  A_PaniniCardBase paniniCardBase;
+  bool public isPaniniCardPackage = true;
+
+  A_PaniniCard paniniCard;
 
   uint256 numberOfPackageCreated;
 
   //package gecmisi tutulacak mi?    
   PackagePrice packagePrice;
 
-  function A_PaniniCardPackage () public{
+  function A_PaniniCardPackage() public{
     packagePrice.normal = 5000000000000000000; //0.05 ether
     packagePrice.initial = 1000000000000000000; //0.01 ether
     packagePrice.special = 3000000000000000000; //0.03 ether
   }  
 
   //1 kere set edilebilsin
-  function setA_PaniniCardBase(address _address) public {
-    //if(address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = A_PaniniCardBase(_address);
-    //}      
+  //sadece paniniController'dan set edilebilsin.
+  function setA_PaniniCard(address _address) __onlyIfA_PaniniController public {    
+    require(address(paniniCard) == address(0) && _address != address(0) );
+    paniniCard = A_PaniniCard(_address);         
   }
 
   function createPackage(address _address) public view returns(uint256, uint256, uint256, uint256, uint256){
@@ -602,11 +612,11 @@ contract A_PaniniCardPackage is AttachingA_PaniniController, HasA_PaniniState {
     uint256 packageId = numberOfPackageCreated;
 
     //generating cards bases
-    uint256 baseId1 = paniniCardBase.generateRandomBaseId(numberOfPackageCreated);
-    uint256 baseId2 = paniniCardBase.generateRandomBaseId(numberOfPackageCreated * baseId1);
-    uint256 baseId3 = paniniCardBase.generateRandomBaseId(numberOfPackageCreated * baseId2);
-    uint256 baseId4 = paniniCardBase.generateRandomBaseId(numberOfPackageCreated * baseId3);
-    uint256 baseId5 = paniniCardBase.generateRandomBaseId(numberOfPackageCreated * baseId4);
+    uint256 baseId1 = paniniCard.generateRandomBaseId(numberOfPackageCreated);
+    uint256 baseId2 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId1);
+    uint256 baseId3 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId2);
+    uint256 baseId4 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId3);
+    uint256 baseId5 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId4);
     emit PackageCreated(packageId, _address, baseId1, baseId2, baseId3, baseId4, baseId5);
     return (baseId1, baseId2, baseId3, baseId4, baseId5);
   }
@@ -660,6 +670,9 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
   event CancelAuction(address owner, uint256 _cardId);
   event Bid(address owner, address sender, uint256 _cardId, uint256 amount);
 
+  bool public isPaniniMarket = true;
+
+
   // Values 0-10,000 map to 0%-100%
   uint256 ownerCut;
 
@@ -681,6 +694,7 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
   PaniniERC721Token nft; // panini
 
   function A_PaniniMarket() public {
+    ownerCut = 1200; //12% cutof. 
   }
 
   function onERC721Received(address _from, uint256 _tokenId, bytes _data) public returns(bytes4) {
@@ -688,19 +702,14 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
   }
 
   //TODO: 1 kez set edilecek sekilde degistirilecek.
-  function setNFT(address _address) public {
-    //if(address(nft) == address(0) && _address != address(0) ) {
-      nft = PaniniERC721Token(_address);
-    //}
+  //sadece paniniController set edebilsin.
+  function setNFT(address _address) __onlyIfA_PaniniController public {  
+    require(address(nft) == address(0) && _address != address(0) );        
+    nft = PaniniERC721Token(_address);
+    //nft erc721 mi?
+    //TODO: check if nft is erc721
   }
 
-  //TODO: 1 kez set edilecek sekilde degistirilecek.
-  function setCut(uint256 _cut) public {
-    if(ownerCut == 0 && _cut != 0 ) {
-      ownerCut = _cut;
-    }
-  }
-  
   function getOwnerCut() public view returns(uint256) {
     return ownerCut;
   }
@@ -856,7 +865,9 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
  contract PaniniBase is AttachingA_PaniniController, HasA_PaniniState {
   using Mutex for Mutex.Data;
 
-  A_PaniniCardBase paniniCardBase;
+  bool public isPaniniBase = true;
+
+  A_PaniniCard paniniCard;
   A_PaniniCardPackage paniniCardPackage;
   A_PaniniMarket paniniMarket;
 
@@ -869,28 +880,24 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
   }  
 
   //1 kere set edilebilsin
-  function setA_PaniniCardBase(address _address) public {
-    //if(address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = A_PaniniCardBase(_address);
-    //}      
+  //sadece paniniController'dan set edilebilsin.
+  function setA_PaniniCard(address _address) __onlyIfA_PaniniController public {    
+    require(address(paniniCard) == address(0) && _address != address(0) );
+    paniniCard = A_PaniniCard(_address);         
   }
 
   //1 kere set edilebilsin
-  function setA_PaniniCardPackage(address _address) public {
-    //if(address(paniniCardPackage) == address(0) && _address != address(0) ) {
-      paniniCardPackage = A_PaniniCardPackage(_address);
-    //}      
+  //sadece paniniController'dan set edilebilsin.
+  function setA_PaniniCardPackage(address _address) __onlyIfA_PaniniController public {
+    require(address(paniniCardPackage) == address(0) && _address != address(0) );
+    paniniCardPackage = A_PaniniCardPackage(_address);
   }
 
   //1 kere set edilebilsin
-  function setA_PaniniMarket(address _address) public {
-    //if(address(paniniMarket) == address(0) && _address != address(0) ) {
-      paniniMarket = A_PaniniMarket(_address);
-      //TODO: 1 kere set edilebilsin bu methodlar.
-      paniniMarket.setNFT(address(this));
-      paniniMarket.setCut(1000); //%10
-      
-    //}      
+  //sadece paniniController'dan set edilebilsin.
+  function setA_PaniniMarket(address _address) __onlyIfA_PaniniController public {
+    require(address(paniniMarket) == address(0) && _address != address(0) );
+    paniniMarket = A_PaniniMarket(_address);
   }
   
 }
@@ -927,7 +934,7 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
   }
 
   function _mintRandomCard(address _to) internal returns(uint256) {
-    uint256 baseId = paniniCardBase.generateRandomBaseId(lastMintedCardId);
+    uint256 baseId = paniniCard.generateRandomBaseId(lastMintedCardId);
     //kart'in uretilmesi.
     return _mintCardWithBaseId(_to, baseId);
   }
@@ -935,7 +942,7 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
   function getAnimalCardInfo(uint256 _cardId) public view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
     uint256 baseId = cardIdToBaseId[_cardId];
     if(baseId != 0) {
-      return paniniCardBase.getAnimalCardBaseTupple(baseId);
+      return paniniCard.getCardBaseTupple(baseId);
     }    
     return (0,'0',0,0,0,0,0);
   }
@@ -1484,11 +1491,13 @@ function claimShareholderOwnership() public {
 contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
 
   A_PaniniState paniniState;
-  PaniniBase paniniBase; //Panini <--
-  A_PaniniCardBase paniniCardBase;
+  A_PaniniCard paniniCard;
   A_PaniniCardPackage paniniCardPackage;
   A_PaniniMarket paniniMarket;
- 
+  PaniniBase paniniBase; //Panini <--
+
+  bool public isPaniniController = true;
+
   modifier __onlyIfPaniniBase{
     require (msg.sender == address(paniniBase));
     _;
@@ -1496,7 +1505,7 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
 
   modifier __onlyForAttachedPackages{
     require (msg.sender == address(paniniBase) ||
-        msg.sender == address(paniniCardBase) ||
+        msg.sender == address(paniniCard) ||
         msg.sender == address(paniniCardPackage) ||
         msg.sender == address(paniniMarket) );
     _;
@@ -1513,44 +1522,65 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
     _;
   }
 
-  //1 kez set edilebilsin.
-  function attachPaniniBase(address _address) public {
-    //if( address(paniniState) == address(0) && _address != address(0) ) {
-      paniniBase = PaniniBase(_address);       
-      paniniBase.attachA_PaniniController(address(this));
-    //}
-  }
-  
-  //1 kez set edilebilsin.
-  function attachA_PaniniState(address _address) public {
-    //if( address(paniniState) == address(0) && _address != address(0) ) {
-      paniniState = A_PaniniState(_address);       
-      paniniState.attachA_PaniniController(address(this));
-    //}
+  /*function isAttachedAll() __OnlyForThisRoles1(true, Role.RoleType.CEO) public view returns(bool) {
+    if ( 
+      paniniState.isPaniniState() == true &&
+      paniniCard.isPaniniCard() == true &&
+      paniniCardPackage.isPaniniCardPackage() == true &&
+      paniniMarket.isPaniniMarket() == true &&
+      paniniBase.isPaniniBase() == true ) {
+          return true;
+      }
+    return false;
+  }*/
+
+  function attachAll(address _paniniStateAddress,
+    address _paniniCardAddress,
+    address _paniniCardPackageAddress,
+    address _paniniMarketAddress,
+    address _paniniBaseAddress ) __OnlyForThisRoles1(true, Role.RoleType.CEO) public {
+
+    //require (isAttachedAll() == false);
+
+    A_PaniniState candidatePaniniState = A_PaniniState(_paniniStateAddress);  
+    A_PaniniCard candidatePaniniCard = A_PaniniCard(_paniniCardAddress);  
+    A_PaniniCardPackage candidatePaniniCardPackage = A_PaniniCardPackage(_paniniCardPackageAddress);  
+    A_PaniniMarket candidatePaniniMarket = A_PaniniMarket(_paniniMarketAddress);  
+    PaniniBase candidatePaniniBase = PaniniBase(_paniniBaseAddress);  
+
+    /*
+    require ( 
+      candidatePaniniState.isPaniniState() == true &&
+      candidatePaniniCard.isPaniniCard() == true &&
+      candidatePaniniCardPackage.isPaniniCardPackage() == true &&
+      candidatePaniniMarket.isPaniniMarket() == true &&
+      candidatePaniniBase.isPaniniBase() == true);*/
+
+    candidatePaniniState.attachA_PaniniController();
+    candidatePaniniCard.attachA_PaniniController();
+    candidatePaniniCardPackage.attachA_PaniniController();
+    candidatePaniniMarket.attachA_PaniniController();
+    candidatePaniniBase.attachA_PaniniController();
+
+    candidatePaniniCard.setA_PaniniState(_paniniStateAddress);
+    candidatePaniniCardPackage.setA_PaniniState(_paniniStateAddress);
+    candidatePaniniMarket.setA_PaniniState(_paniniStateAddress);
+    candidatePaniniBase.setA_PaniniState(_paniniStateAddress);
+
+    candidatePaniniCardPackage.setA_PaniniCard(_paniniCardAddress);
+    candidatePaniniBase.setA_PaniniCard(_paniniCardAddress);
+    candidatePaniniBase.setA_PaniniCardPackage(_paniniCardPackageAddress);
+    candidatePaniniBase.setA_PaniniMarket(_paniniMarketAddress);
+
+    candidatePaniniMarket.setNFT(_paniniBaseAddress);
+
+    paniniState = candidatePaniniState;
+    paniniCard = candidatePaniniCard;
+    paniniCardPackage = candidatePaniniCardPackage;
+    paniniMarket = candidatePaniniMarket;
+    paniniBase = candidatePaniniBase;
   }
 
-  //1 kez set edilebilsin.
-  function attachA_PaniniCardBase(address _address) public {
-    //if( address(paniniCardBase) == address(0) && _address != address(0) ) {
-      paniniCardBase = A_PaniniCardBase(_address);       
-      paniniCardBase.attachA_PaniniController(address(this));
-    //}
-  }
-  //1 kez set edilebilsin.
-  function attachA_PaniniCardPackage(address _address) public {
-    //if( address(paniniMarket) == address(0) && _address != address(0) ) {
-      paniniCardPackage = A_PaniniCardPackage(_address);       
-      paniniCardPackage.attachA_PaniniController(address(this));
-    //}
-  }
-  
-  //1 kez set edilebilsin.
-  function attachA_PaniniMarket(address _address) public {
-    //if( address(paniniMarket) == address(0) && _address != address(0) ) {
-      paniniMarket = A_PaniniMarket(_address);       
-      paniniMarket.attachA_PaniniController(address(this));
-    //}
-  }
 
   function distributeBalance(uint256 _amount) __onlyForAttachedPackages public {
     _distributeBalance(_amount);
@@ -1587,8 +1617,8 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
     return _getShareholderBalance(_address);  
   }
   
-  function createAnimalCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
-    paniniCardBase.createAnimalCardBase(_name, _health, _weigth, _speed, _regionIndex, _rarity );
+  function createCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
+    paniniCard.createCardBase(_name, _health, _weigth, _speed, _regionIndex, _rarity );
   }
   
 
