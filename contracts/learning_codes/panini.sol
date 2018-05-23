@@ -45,12 +45,12 @@ library Mutex {
   }
 
   function enter(Mutex.Data self) pure internal {
-    require( self.isEntered == false);
-    self.isEntered == true;    
+    require(!self.isEntered);
+    self.isEntered = true;    
   }
 
   function left(Mutex.Data self) pure internal {
-    self.isEntered == false;    
+    self.isEntered = false;    
   }
 }
 
@@ -330,7 +330,7 @@ contract AttachingA_PaniniController {
   //msg.sender paniniController olmali.
   function attachA_PaniniController() public {    
     require(address(paniniController) == address(0));
-    require (msg.sender.isContract() == true);    
+    require (msg.sender.isContract() );    
     A_PaniniController candidatePaniniController = A_PaniniController(msg.sender);
     //require (paniniController.isPaniniController());   
     paniniController = candidatePaniniController;      
@@ -1085,8 +1085,10 @@ function bid(uint256 _cardId) __isPlayer __whenNotPaused public payable{
   address owner = paniniMarket.getOwnerOfAuctionFromCardId(_cardId);
   require(owner.call.value(currentPrice)());
 
-  //fazla girebilecek degieri. Parasi geri verilecek.
-  require(msg.sender.call.value(bidExcess)());
+  if(bidExcess > 0 ) {
+    //fazla girebilecek degieri. Parasi geri verilecek.
+    require(msg.sender.call.value(bidExcess)());
+  }
 
   mutex.left();
 }
@@ -1200,7 +1202,7 @@ function PaniniDevAccounts() public {
 }    
 
 function _addDevAccount(address _address, Role.RoleType _roleType, bool _active) internal returns(bool success) {
-  if( devAccounts[_address].active == false ) {            
+  if(!devAccounts[_address].active) {            
     devAccounts[_address].active = _active;
     devAccounts[_address].roleType = _roleType;
     devAccounts[_address].createdTime = "created Time";
@@ -1222,7 +1224,7 @@ function addDevAccountToCOO (address _address, bool _active) __onlyOwner public 
 }
 
 function removeDevAccount(address _address) __onlyOwner public returns(bool success) {
-  if( devAccounts[_address].active == true ) {            
+  if( devAccounts[_address].active ) {            
     devAccounts[_address].active = false;
     delete devAccounts[_address];
     emit DevAccountRoleRemoved(_address); //event'e role eklenebilir mi acaba?
@@ -1232,21 +1234,21 @@ function removeDevAccount(address _address) __onlyOwner public returns(bool succ
 
 modifier __onlyCEO() {
 
-  require(devAccounts[msg.sender].active == true);        
+  require(devAccounts[msg.sender].active);        
   require(devAccounts[msg.sender].roleType == Role.RoleType.CEO);
   _;
 }
 
 modifier __onlyCFO() {
 
-  require(devAccounts[msg.sender].active == true);        
+  require(devAccounts[msg.sender].active);        
   require(devAccounts[msg.sender].roleType == Role.RoleType.CFO);
   _;
 }
 
 modifier __onlyCOO() {
 
-  require(devAccounts[msg.sender].active == true);        
+  require(devAccounts[msg.sender].active);        
   require(devAccounts[msg.sender].roleType == Role.RoleType.COO);
   _;
 }
@@ -1256,10 +1258,10 @@ modifier __OnlyForThisRoles1(bool _withOwner, Role.RoleType _role1 ) {
   if(_withOwner && isOwner()) {
     result = true;
   }
-  if(devAccounts[msg.sender].active == true && devAccounts[msg.sender].roleType == _role1 ) {
+  if(devAccounts[msg.sender].active && devAccounts[msg.sender].roleType == _role1 ) {
     result = true;            
   }
-  require (result == true);        
+  require (result);        
   _;
 }
 
@@ -1268,13 +1270,13 @@ modifier __OnlyForThisRoles2(bool _withOwner, Role.RoleType _role1, Role.RoleTyp
   if(_withOwner && isOwner()) {
     result = true;
   }
-  if(devAccounts[msg.sender].active == true) {
+  if(devAccounts[msg.sender].active) {
     if( devAccounts[msg.sender].roleType == _role1 
       || devAccounts[msg.sender].roleType == _role2) {
       result = true;            
     }
   }
-  require (result == true);        
+  require (result);        
   _;
 }
 
@@ -1283,14 +1285,14 @@ modifier __OnlyForThisRoles3(bool _withOwner, Role.RoleType _role1, Role.RoleTyp
   if(_withOwner && isOwner()) {
     result = true;
   }
-  if(devAccounts[msg.sender].active == true) {
+  if(devAccounts[msg.sender].active) {
     if( devAccounts[msg.sender].roleType == _role1 
       || devAccounts[msg.sender].roleType == _role2                 
       || devAccounts[msg.sender].roleType == _role3) {
       result = true;            
     }
   }
-  require (result == true);        
+  require (result);        
   _;
 }
 
@@ -1363,7 +1365,7 @@ function isShareHolder(address _address) public view returns(bool) {
 
 function _addShareHolder(address _address, uint256 _percentage) internal {
 
-  require (isShareHolder(_address) == false);
+  require (!isShareHolder(_address));
 
   uint nextTotalPercentage = totalPercentage + _percentage;
   if(nextTotalPercentage <= 100) {
@@ -1522,17 +1524,16 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
     _;
   }
 
-  /*function isAttachedAll() __OnlyForThisRoles1(true, Role.RoleType.CEO) public view returns(bool) {
-    if ( 
-      paniniState.isPaniniState() == true &&
-      paniniCard.isPaniniCard() == true &&
-      paniniCardPackage.isPaniniCardPackage() == true &&
-      paniniMarket.isPaniniMarket() == true &&
-      paniniBase.isPaniniBase() == true ) {
+  function isAttachedAll() __OnlyForThisRoles1(true, Role.RoleType.CEO) public view returns(bool) {
+    if ( address(paniniState) != address(0) &&
+      address(paniniCard) != address(0) &&
+      address(paniniCardPackage) != address(0) &&
+      address(paniniMarket) != address(0) &&
+      address(paniniBase) != address(0) ) {
           return true;
       }
     return false;
-  }*/
+  }
 
   function attachAll(address _paniniStateAddress,
     address _paniniCardAddress,
@@ -1540,7 +1541,7 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
     address _paniniMarketAddress,
     address _paniniBaseAddress ) __OnlyForThisRoles1(true, Role.RoleType.CEO) public {
 
-    //require (isAttachedAll() == false);
+    require (!isAttachedAll());
 
     A_PaniniState candidatePaniniState = A_PaniniState(_paniniStateAddress);  
     A_PaniniCard candidatePaniniCard = A_PaniniCard(_paniniCardAddress);  
@@ -1548,13 +1549,12 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
     A_PaniniMarket candidatePaniniMarket = A_PaniniMarket(_paniniMarketAddress);  
     PaniniBase candidatePaniniBase = PaniniBase(_paniniBaseAddress);  
 
-    /*
     require ( 
-      candidatePaniniState.isPaniniState() == true &&
-      candidatePaniniCard.isPaniniCard() == true &&
-      candidatePaniniCardPackage.isPaniniCardPackage() == true &&
-      candidatePaniniMarket.isPaniniMarket() == true &&
-      candidatePaniniBase.isPaniniBase() == true);*/
+      candidatePaniniState.isPaniniState() &&
+      candidatePaniniCard.isPaniniCard() &&
+      candidatePaniniCardPackage.isPaniniCardPackage() &&
+      candidatePaniniMarket.isPaniniMarket() &&
+      candidatePaniniBase.isPaniniBase());
 
     candidatePaniniState.attachA_PaniniController();
     candidatePaniniCard.attachA_PaniniController();
