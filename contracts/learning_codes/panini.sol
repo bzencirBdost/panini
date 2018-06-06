@@ -398,15 +398,37 @@ contract HasA_PaniniState {
 
 library CardBase {
 
-  enum Region {
-    ASIA,
-    AFRICA,
-    NOURTH_AMERICA,
-    SOUTH_AMERICA,
-    ANTARCTICA,
-    EUROPE,
-    AUSTRALIA,
-    OCEAN
+  //kullanimi daha kolay.(enum'da disari acmak icin convert gerekiyor..)
+  struct Region {
+    uint256 ASIA = 1;
+    uint256 AFRICA = 2;
+    uint256 NOURTH_AMERICA = 3;
+    uint256 SOUTH_AMERICA = 4;
+    uint256 ANTARCTICA = 5;
+    uint256 EUROPE = 6;
+    uint256 AUSTRALIA = 7;
+    uint256 OCEAN = 8;
+  }
+
+  //10 = %10
+  struct Rarity {
+    uint256 COMMON = 70;
+    uint256 RARE = 25;
+    uint256 EXOTIC = 5;
+  }
+
+  //10 = %10
+  struct Passive {
+    uint256 HEAL_BUFF = 1;
+    uint256 POISON = 2;
+    uint256 ATTACK_BUFF = 3;
+    uint256 ATTACK_DEBUFF = 4;
+    uint256 DEFENSE_BUFF = 5;
+    uint256 DEFENSE_DEBUFF = 6;
+    uint256 SPEED_BUFF = 7;
+    uint256 SPEED_DEBUFF = 8;
+    uint256 LIFESPAN_BUFF = 9;
+    uint256 LIFESPAN_DEBUFF = 10;
   }
 
   //data
@@ -415,66 +437,58 @@ library CardBase {
     //kullanilmayacak, bunun yerine indexler id olacak.
     uint256 id; // arr index: 0: empty initialized and never used.
     string name;
-    uint256 health; //life expectancy
-    uint256 weigth; //str
-    uint256 speed; //dex
-    Region region;
+    
+    uint256 hp; //health power
+    uint256 ap; //attack power
+    uint256 deff; //defence
+    uint256 speed; //speed
+    uint256 weigth; //weight
+    
+    uint256 lifespan; //life span    
+    uint256 region;
     uint256 rarity; // 0-100 arasinda bir sayi. 
+
+    //pasif ozellikler
+    uint256 passive;
+    uint256 passivePercent; // 10 = %10
   }
 
   //returns clone of base card.
   function clone(CardBase.Data self) internal pure returns(CardBase.Data) {
-    return CardBase.Data(self.id, self.name, self.health, self.weigth, self.speed, self.region, self.rarity);
+    return CardBase.Data(self.id, self.name,
+      self.hp, self.ap, self.deff, self.speed, self.weigth,
+      self.lifespan, self.region, self.rarity, self.passive, self.passivePercent);
   }
 
   //returns clone of base card.
-  function toTuple(CardBase.Data self) internal pure returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
+  function toTuple(CardBase.Data self) internal pure returns(uint256, string, 
+    uint256, uint256, uint256, uint256, uint256,
+    uint256, uint256, uint256, uint256, uint256) {
 
-    uint256 regionIndex = 1; //default ASIA
-    if(self.region == Region.AFRICA) {
-      regionIndex = 2;
-    } else if(self.region == Region.NOURTH_AMERICA) {
-      regionIndex = 3;
-    } else if(self.region == Region.SOUTH_AMERICA) {
-      regionIndex = 4;
-    } else if(self.region == Region.ANTARCTICA) {
-      regionIndex = 5;
-    } else if(self.region == Region.EUROPE) {
-      regionIndex = 6;
-    } else if(self.region == Region.AUSTRALIA) {
-      regionIndex = 7;
-    } else if(self.region == Region.OCEAN) {
-      regionIndex = 8;
-    }
-    return (self.id, self.name, self.health, self.weigth, self.speed, regionIndex, self.rarity);
+    return (self.id, self.name,
+      self.hp, self.ap, self.deff, self.speed, self.weigth,
+      self.lifespan, self.region, self.rarity, self.passive, self.passivePercent);
   }
 
-  function fromTuple(CardBase.Data self, uint256 _id, string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity) internal pure {
+  function fromTuple(CardBase.Data self, uint256 _id, string _name, 
+    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
+    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) internal pure {
 
       self.id = _id;
       self.name = _name;
-      self.health = _health;
-      self.weigth = _weigth;
+
+      self.hp = _hp;
+      self.ap = _ap;
+      self.deff = _deff;
       self.speed = _speed;
+      self.weigth = _weigth;
 
-      self.region = Region.ASIA;
-      if(_regionIndex == 2) {
-        self.region = Region.AFRICA;  
-      } else if(_regionIndex == 3) {
-        self.region = Region.NOURTH_AMERICA;  
-      } else if(_regionIndex == 4) {
-        self.region = Region.SOUTH_AMERICA;  
-      } else if(_regionIndex == 5) {
-        self.region = Region.ANTARCTICA;  
-      } else if(_regionIndex == 6) {
-        self.region = Region.EUROPE;  
-      } else if(_regionIndex == 7) {
-        self.region = Region.AUSTRALIA;  
-      } else if(_regionIndex == 8) {
-        self.region = Region.OCEAN;  
-      }
-
+      self.lifespan = _lifespan;
+      self.region = _region;
       self.rarity = _rarity;
+
+      self.passive = _passive;
+      self.passivePercent = _pasivePercent
   }
 
 }
@@ -488,7 +502,10 @@ library CardBase {
   bool public isPaniniCard = true;
 
   //server tarafinda her create'te db guncellenecek. Bu sayede base card'larin listesi goruntulenebilecek.
-  event CreatedAnimalCard(uint256 id, string name, uint256 health, uint256 weigth, uint256 speed, uint256 regionIndex, uint256 rarity);
+  event CreatedAnimalCard(uint256 _id, string _name, 
+    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
+    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent );
+
   // metedata
   CardBase.Data[] cardBaseList; 
   
@@ -497,27 +514,45 @@ library CardBase {
   }  
 
   function initCardBase() internal {
-       //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
-        _createCardBase('empty', 0, 0, 0, CardBase.Region.AFRICA, 0 );        
-        
-        _createCardBase('fil', 1000, 3000, 60, CardBase.Region.AFRICA, 14 );        
-        _createCardBase('at', 400, 500, 90, CardBase.Region.ASIA, 22 );        
-        _createCardBase('tavsan', 20, 2, 80, CardBase.Region.EUROPE, 55 );        
-        _createCardBase('aslan', 200, 200, 80, CardBase.Region.AFRICA, 21 );        
+    //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
+    _createCardBase('empty', 0, 0, 0, 0, 0, 
+      0, CardBase.Region.AFRICA, CardBase.Rarity.COMMON, CardBase.Passive.HEAL_BUFF, 0 );        
 
-        _createCardBase('balina', 10000, 30000, 40, CardBase.Region.OCEAN, 14 );        
-        _createCardBase('yunus', 1000, 300, 80, CardBase.Region.OCEAN, 25 );        
-        _createCardBase('kilic baligi', 100, 40, 140, CardBase.Region.OCEAN, 5 );        
-
-        _createCardBase('kartal', 100, 15, 100, CardBase.Region.ASIA, 25 );        
-        _createCardBase('guvercin', 10, 1, 30, CardBase.Region.SOUTH_AMERICA, 24 );        
-
-        _createCardBase('karinca', 1, 1, 1, CardBase.Region.EUROPE, 43 );            
+    //name, hp, ap, deff, speed, weight, 
+    //lifespan, region, rarity, passive, passivePercent
+    /*
+    _createCardBase('name', hp, ap, def, sp, wg,
+      lp, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.ATTACK_BUFF, 10 );        
+    */
+    _createCardBase('fil', 10000, 1000, 300, 80, 6000,
+      60, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.DEFENSE_BUFF, 10 );        
+    _createCardBase('at', 700, 30, 120, 120, 500,
+      30, CardBase.Region.ASIA, CardBase.Rarity.COMMON, CardBase.Passive.SPEED_BUFF, 5 );        
+    _createCardBase('tavsan', 20, 30, 20, 50, 2,
+      6, CardBase.Region.EUROPE, CardBase.Rarity.COMMON, CardBase.Passive.LIFESPAN_BUFF, 10 );        
+    _createCardBase('aslan', 1000, 500, 300, 70, 250,
+      20, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.ATTACK_BUFF, 10 );        
+    _createCardBase('balina', 5000, 10, 100, 60, 30000,
+      120, CardBase.Region.OCEAN, CardBase.Rarity.EXOTIC, CardBase.Passive.HEAL_BUFF, 3 );        
+    _createCardBase('yunus', 100, 30, 100, 100, 200,
+      40, CardBase.Region.OCEAN, CardBase.Rarity.RARE, CardBase.Passive.HEAL_BUFF, 2 );        
+    _createCardBase('kilic baligi', 60, 120, 200, 120, 50,
+      30, CardBase.Region.OCEAN, CardBase.Rarity.EXOTIC, CardBase.Passive.DEFENSE_DEBUFF, 10 );        
+    _createCardBase('kartal', 20, 100, 80, 120, 20,
+      20, CardBase.Region.ASIA, CardBase.Rarity.RARE, CardBase.Passive.SPEED_BUFF, 10 );        
+    //mesela guvercin gucsuz bir hayvan. Bunu 5 yil boyunca sagladigi %20 heal buff ile fazlasi ile telafi etmekte.
+    // %20 buff cok ama cok iyi bir rakam. Bu rakam 5 yil boyunca partisi cok iyi korur.
+    //degisik kombinasyonlar olabilir, oyunculara kaldi artik, ama bu kadar farkli secenekler sanirim oldukca buyuk uzay saglamakta.
+    _createCardBase('guvercin', 5, 1, 1, 20, 1,
+      5, CardBase.Region.SOUTH_AMERICA, CardBase.Rarity.COMMON, CardBase.Passive.HEAL_BUFF, 20 );        
+    //mesela karinca, gucercin gibi ayni sekilde, ilk 3 yil rakibin defansini oyle bir dusurur ki, oyuna hizli baslayip bitirmek isteyen oyuncular icin bire-bir.
+    _createCardBase('karinca', 1, 1, 1, 1, 0,
+      3, CardBase.Region.ASIA, CardBase.Rarity.COMMON, CardBase.Passive.DEFENSE_DEBUFF, 30 );        
 
   }
 
   // usuable id between 1 to (n-1)
-  function existCardBase(uint256 _baseId ) public view returns(bool) {
+  function existCardBase(uint256 _baseId) public view returns(bool) {
     if( _baseId > 0 && _baseId <= cardBaseList.length) {
       return true;
     }
@@ -525,31 +560,24 @@ library CardBase {
   }
 
   //usuable card id starts with 1.
-  function _createCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, CardBase.Region _region, uint256 _rarity ) internal{
+  function _createCardBase(string _name, 
+    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
+    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) internal{
+
     uint256 id = cardBaseList.length;
-    cardBaseList.push(CardBase.Data(id, _name, _health, _weigth, _speed, _region, _rarity));
+    cardBaseList.push(CardBase.Data(id, _name,
+      _hp, _ap, _deff, _speed, _weigth,
+      _lifespan, _region, _rarity, _pasive, _pasivePercent));
   }
 
   // usuable card id starts with 1.
   // __onlyIfA_PaniniController
-  function createCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __onlyIfA_PaniniController public {
-    CardBase.Region region = CardBase.Region.ASIA;
-    if(_regionIndex == 2) {
-      region = CardBase.Region.AFRICA;  
-    } else if(_regionIndex == 3) {
-      region = CardBase.Region.NOURTH_AMERICA;  
-    } else if(_regionIndex == 4) {
-      region = CardBase.Region.SOUTH_AMERICA;  
-    } else if(_regionIndex == 5) {
-      region = CardBase.Region.ANTARCTICA;  
-    } else if(_regionIndex == 6) {
-      region = CardBase.Region.EUROPE;  
-    } else if(_regionIndex == 7) {
-      region = CardBase.Region.AUSTRALIA;  
-    } else if(_regionIndex == 8) {
-      region = CardBase.Region.OCEAN;  
-    }
-    _createCardBase(_name, _health, _weigth, _speed, region, _rarity);
+  function createCardBase(string _name, 
+    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
+    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) __onlyIfA_PaniniController public {
+    _createCardBase(_name,
+      _hp, _ap, _deff, _speed, _weigth,
+      _lifespan, _region, _rarity, _pasive, _pasivePercent );
   }
 
   //returns index of animalCardBase
@@ -566,7 +594,9 @@ library CardBase {
     //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
   }
 
-  function getCardBaseTupple(uint256 _baseId) public view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
+  function getCardBaseTupple(uint256 _baseId) public view returns(uint256, string, 
+    uint256, uint256, uint256, uint256, uint256,
+    uint256, uint256, uint256, uint256, uint256) {
     require( _baseId > 0 && _baseId <= cardBaseList.length);
     return cardBaseList[_baseId].toTuple();
   }
@@ -960,8 +990,6 @@ library Player{
   struct Data {
     uint256 id; 
     string name;
-    uint256 numberOfStars;
-
     //server'da tutulacak. 
     //TODO: nasil goruntuleyecek? nasil serverda tutulacak?
     // emit (address, cardId, baseId)?
@@ -976,12 +1004,12 @@ library Player{
 // sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
 //   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
 //  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
-contract UsingPlayer is UsingCard{
+contract Player is UsingCard{
   using Player for Player.Data;
   mapping (address => Player.Data) players;
   uint256 numberOfPlayer;
 
-  function UsingPlayer() public {
+  function Player() public {
 
   }
 
@@ -1093,6 +1121,23 @@ function bid(uint256 _cardId) __isPlayer __whenNotPaused public payable{
   mutex.left();
 }
 
+//TODO: controller tarafindan bu addresin eklenip eklenemeyecegi kontrol edilecek.
+//Oyun contract'ina butun tokenlerinin alim-satimi icin yetki verir.
+function addGameToStore(address gameAddress) __isPlayer{
+  //TODO : controlls. 
+  //TODO: myGames olmali. Bu oyunlar gameBase'den belli metodlari almali. 
+  //   Orn score gosterme gibi. Oyuncunun ana ekraninda oyunlari icin score'lari gosterebilecek.
+  //simdilik sadece yetki versin.
+  setApprovalForAll(gameAddress, true);  
+}
+
+//TODO: controller tarafindan bu addresin eklenip eklenemeyecegi kontrol edilecek.
+//Oyun contract'indan butun tokenlerinin alim-satimi icin verdiği yetkiyi kaldirir.
+function removeGameToStore(address gameAddress) __isPlayer{
+  //TODO : controlls. 
+    setApprovalForAll(gameAddress, false); 
+}
+
 /*
 // TODO: bu method degistirilecek. belkide gerek yok. Token standartinin extend hali sanki address -> token list veriyordu.
 // sonrada kontrol edilecek ve eklenecek
@@ -1105,19 +1150,293 @@ function bid(uint256 _cardId) __isPlayer __whenNotPaused public payable{
       return cards;
     }*/
 
-    //TODO: numberOfStars calculation function.
+    //TODO: score calculation function.
 
   }
 
-  //#########################################
-  //###             PANINI                ###
-  //#########################################
-  contract A_Panini is UsingPlayer{
 
-    function A_Panini() public {
 
+
+
+
+//#########################################
+//###             PANINI                ###
+//#########################################
+//player oyunu direk oynayabilecek.
+//burada onemli nokta: bu contract'tan escrow yapilabilmeli.
+//3. parti bir oyun gibi dusunebiliriz.
+// ERC721Receiver olmali.
+// PaniniState'i olmali.
+// Player'i olmali
+// A_PaniniCard olmali.
+// Onemli: Token standartinda bulunan setApprovalForAll'in player tarafindan bu contract icin aktif hale getirilmis olmasi gerekmekte..
+// Player oyunu Player contract'inda ekleyecek. (Guvenligi bir sekilde saglayacagim. Ayni token standart'i gibi bizim de bir oyun standartimiz olmali.)
+// Soru: peki player approval'i kaldirir ise? 
+//   1. Mevcut oyun devam edecek. Zaten contract rehin almisti kartlari.
+//   2. oyun baslatamayacak. Bu zaten approval vermediyse gerceklesmeyecektir.
+//   Aslinda oyunu ekleyip cikarmis oluyor. 
+//   3. Approval verdigi oyunun bizim controller tarafindan onaylanmis olmasi gerekiyor. Yanlis address'e setApprovalForAll vermemeli.
+//      3.1 Controller'a oyun eklenebilmeli.
+//      3.2 cikartilabilmeli mi?
+//   4. activate game. deActivate game.
+contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
+
+  // Reference to contract tracking NFT ownership
+  // player ve nft ayni address. Player has ERCTokens.
+  //kodlama kolayligi olmasi acisindan nft islemleri burada nft degiskeninden yapilacak.
+  Player playerContract;
+  PaniniERC721Token nft;
+  A_PaniniCard paniniCard;
+
+  mapping (uint256 => address) escrowedCardOwners;  
+
+  function A_PaniniGameBase() public {
+
+  }
+
+  //1 kere set edilebilsin
+  //sadece paniniController'dan set edilebilsin.
+  function setA_PaniniCard(address _address) __onlyIfA_PaniniController public {    
+    require(address(paniniCard) == address(0) && _address != address(0) );
+    paniniCard = A_PaniniCard(_address);         
+  }
+
+  function onERC721Received(address _from, uint256 _tokenId, bytes _data) public returns(bytes4) {
+    return ERC721_RECEIVED;
+  }
+
+  //TODO: 1 kez set edilecek sekilde degistirilecek.
+  //TODO: sadece paniniController set edebilsin.
+  //Bunu bir liste olarak ekleyecegim controller'a.
+  function setPlayerContract(address _address) public {  
+    require(address(playerContract) == address(0) && _address != address(0) );        
+    playerContract = Player(_address);
+    nft = PaniniERC721Token(_address);
+    //nft erc721 mi?
+    //TODO: check if nft is erc721
+  }
+
+  //escrow 
+  //butun oyunlarda kart'larin rehin alinma ozelligi olsun.
+  //bu sayede islemleri yapabilir.
+  //ONEMLI: bu method sadece ve sadece player bu contract'a appraveAll yetkisini verdiyse calisacak.
+  //Bu metod'un kullanildigi metodlar guvenli. Cunku safetransfer to contract islemi burada gerceklesmekte.
+  function _escrow(uint256 _cardId) internal{
+    address owner = nft.ownerOf(_cardId);
+    nft.safeTransferFrom(_from, address(msg.sender), _cardId);
+    escrowedCardOwners[_cardId] = owner;
+    //TODO: emit escrow.
+  }
+
+  //escrow alinan kartin transfer edilmesi.
+  //sadece kart'in escrow alinip alinmadigini kontrol eder ve transfer eder.  
+  function _transfer(address _to, uint256 _cardId) internal{
+    require(escrowedCardOwners[_cardId] != address(0));
+    nft.approve(address(msg.sender), _to, _cardId);
+    nft.safeTransferFrom(address(msg.sender), _to, _cardId);
+    delete escrowedCardOwners[_cardId];
+    //TODO: emit escrow.
+  }
+
+}
+
+library Game1 {
+  struct Herd {
+    address owner;
+    //active cards
+    uint256 card1;
+    uint256 card2;
+    uint256 card3;
+    uint256 card4;
+    //passive cards
+    uint256 card5;
+    uint256 card6;
+    uint256 card7;
+    uint256 card8;
+  }
+
+  struct Data {
+    uint256 id;  //0 olabilir.
+    address player1;
+    address player2;
+    uint256 startTime;
+    Herd herdOfPlayer1;
+    Herd herdOfPlayer2;    
+  }
+  
+  struct AktiveCard {
+    
+    
+  }
+  
+}
+
+  //GAME-1
+  //oyun'un hazir hale getirilmesi.
+  //1. controller'a ekle. (Controller tarafinda.)
+  //2. state'i ekle. (setState metodunu kulanarak.)
+  contract A_PaniniGame1 is A_PaniniGameBase{
+    using Game1 for Game1.Data;
+    int256 NEW_PLAYER_SCORE = 1200;
+    int256 MIN_SCORE = 800;
+    int256 MAX_SCORE = 2800;
+    int256 SCORE_GAP = 50;
+
+    address[] players;
+    mapping (address => uint256) playersIndex;
+    mapping (address => int256) playerScore;
+    
+    //binary tree balance olmayacagi icin(balance yapmak oyuncuya masraf.), search log(n)'de calisacak sekilde ziplayacak.
+    //tree yerine atliyarak gitse? Ortadan baslasa search'e? bole bole gitse?
+    //Game1.Data[] pendingGames; 
+
+    //hash map of arrays in score window
+    //800-> 800-850 , 850-900, 900-950
+    //1123 ->1100
+    mapping (int256 => Game1.Data[]) pendingGames;
+    
+    uint256 numberOfGames;
+
+    mapping (uint256 => Game1.Data) startedGames;
+    mapping (uint256 => Game1.Data) finishedGames;
+
+    //butun oyuncularin oyunlarinin listesi? 
+    uint256[] games;
+    //Bir oyuncuya ait oynlarin listesi 
+    mapping (address => uint256[]) myGames;    
+
+    function A_PaniniGame1() public {
+    
     }
+
+    function _queueOrFindGame(Game1.Herd _herd) internal {
+      //oyuncu ilk kez oynuyor ise.
+      //register yapmayi dusundum ama, her oyunda score olmayabilir.
+      //sonra player olayini degistirebilirim.
+      address player = _herd.owner;
+      if(playersIndex[player] == 0) {
+        playerScore[player] = NEW_PLAYER_SCORE;
+      }
+
+      int256 score = playerScore[player];
+      int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
+      bool gameFound;
+      //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
+      // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
+      if(pendingGames[index].length > 0) {
+        gameFound = true;
+      } else if(pendingGames[index + SCORE_GAP].length > 0) {
+        gameFound = true;
+        index = index + SCORE_GAP;
+      } else if(pendingGames[index - SCORE_GAP].length > 0) {
+        gameFound = true;
+        index = index - SCORE_GAP;
+      }
+
+      if(gameFound) {
+        //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
+        //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
+        uint256 lastIndex = pendingGames[index].length - 1;
+        Game1.Data game = pendingGames[index][lastIndex];
+
+        pendingGames[index].length = pendingGames[index].length -1;
+        delete pendingGames[index][lastIndex];
+
+        //hizli erisim icin.
+        game.id = startedGames.length;
+        game.player2 = player;
+        game.herdOfPlayer2 = _herd;
+        startedGames.startTime = now; // start time.
+
+        games.push(numberOfGames);
+        myGames[game.player1].push(numberOfGames);
+        myGames[game.player2].push(numberOfGames);
+
+      } else {
+        //note: struct olustururken null veremedigimiz icin hersey player1
+        //starttime = created time for pending players.
+        numberOfGames +=1; //id.
+        Game1.Data game = new Game1.Data(numberOfGames, player, player, _herd, _herd, now);
+        pendingGames[index].push(game);
+      } 
+
+      function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(bool res) {
+        
+      }
+      
+
+/*
+      //not: loop cok uzun olursa gas limiti asiyor. 
+      //Max loop sayisi. olmali. score 800 ile 2800 arasi degissin(max 2800).
+      //gap 2k, 10 defa loop yapilsa, 2^10'dan 1k oyuncu olsa bile, cerceve +100, -100 old icin.
+      // orn worse-case: 10k oyuncu olsun. 9k'si 2800 score'a sahip olsun. 1k'da lineer azalarak dagilsin.
+      // 0.5k, 0.25k, 0.125k, 0.06k, 0.03k, 0.015k, 0.008k, 0.004k, 0.002k, 0.001k -> 1 oyuncu var burada. cerceve gap (200) bulurdu simdiye kadar.
+      // algoritma tekrar gozden gecirilebilir, bir standart sapma ile de ilerlenebilir(ilk basta.) gerek var mi?
+      //15 defa yapilsin.
+      int256 score = playerScore[_player];
+      uint256 k = pendingGames.length/2;
+      uint256 div = 4;      
+      bool gameFound;
+      for(uint256 i = 0; i < 15; i++) { // 16k game.
+        // uygun puan ile rakip bulur ise oyunu baslat.
+        // bulamaz ise aramaya devam edecek.
+        uint256 dif = pendingGames.length/mul;
+        if(dif == 0) { //ayni oyuncuya geldi.
+          break;
+        }
+        int256 scoreDif = score - pendingGames[k].player1.score;
+        if(scoreDif > SCORE_GAP) {
+          //scoru cok yuksek
+          k = k - dif;
+        } else if(scoreGap < (SCORE_GAP*(-1))) {
+          //score cok dusuk
+          k = k + dif;
+        } else {
+          //buldu -> k.
+          gameFound = true;
+          break;
+        }      
+        div = div*2;      
+        
+      }*/
+    }
+    //oyun bulursa oyun baslatir
+    //bulamaz ise siraya girer
+    function startGameorEnterQueue(
+      _card1, _card2, _card3, _card4,
+      _card5, _card6, _card7, _card8
+    ) public {
+      //card'lari kontrol et.
+      require ( 
+        nft.ownerOf(_card1) == address(msg.sender) &&
+        nft.ownerOf(_card2) == address(msg.sender) &&
+        nft.ownerOf(_card3) == address(msg.sender) &&
+        nft.ownerOf(_card4) == address(msg.sender) &&
+        nft.ownerOf(_card5) == address(msg.sender) &&
+        nft.ownerOf(_card6) == address(msg.sender) &&
+        nft.ownerOf(_card7) == address(msg.sender) &&
+        nft.ownerOf(_card8) == address(msg.sender)
+      );
+      
+      Game1.Herd herd = new Game1.Herd(msg.sender,
+       _card1, _card2, _card3, _card4,
+       _card5, _card6, _card7, _card8);
+
+      _queueOrFindGame(herd);
+    }
+
+
+
   }
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1429,6 +1748,7 @@ function withdrawOwnerBalance() internal {
   uint256 balance = ownerBalance;
   require(ownerBalance > 0); //belki mutex'e gerek kalmaz. Bu kontrol yetebilir.
   ownerBalance = 0;
+  //TODO: sadece ownera gidecek. coe'ya degil.
   require(msg.sender.call.value(balance)());
   emit WithdrawOwnerBalance(msg.sender, balance);
   mutex.left();        
