@@ -400,35 +400,36 @@ library CardBase {
 
   //kullanimi daha kolay.(enum'da disari acmak icin convert gerekiyor..)
   struct Region {
-    uint256 ASIA = 1;
-    uint256 AFRICA = 2;
-    uint256 NOURTH_AMERICA = 3;
-    uint256 SOUTH_AMERICA = 4;
-    uint256 ANTARCTICA = 5;
-    uint256 EUROPE = 6;
-    uint256 AUSTRALIA = 7;
-    uint256 OCEAN = 8;
+    uint256 ASIA;
+    uint256 AFRICA;
+    uint256 NOURTH_AMERICA;
+    uint256 SOUTH_AMERICA;
+    uint256 ANTARCTICA;
+    uint256 EUROPE;
+    uint256 AUSTRALIA;
+    uint256 OCEAN;
   }
 
   //10 = %10
   struct Rarity {
-    uint256 COMMON = 70;
-    uint256 RARE = 25;
-    uint256 EXOTIC = 5;
+    uint256 COMMON;
+    uint256 RARE;
+    uint256 EXOTIC;
   }
 
   //10 = %10
+  //0'dan baslayacak. bu sayede index olarak arr ile kullanilabilecek.
   struct Passive {
-    uint256 HEAL_BUFF = 1;
-    uint256 POISON = 2;
-    uint256 ATTACK_BUFF = 3;
-    uint256 ATTACK_DEBUFF = 4;
-    uint256 DEFENSE_BUFF = 5;
-    uint256 DEFENSE_DEBUFF = 6;
-    uint256 SPEED_BUFF = 7;
-    uint256 SPEED_DEBUFF = 8;
-    uint256 LIFESPAN_BUFF = 9;
-    uint256 LIFESPAN_DEBUFF = 10;
+    uint256 HEAL_BUFF;
+    uint256 POISON;
+    uint256 ATTACK_BUFF;
+    uint256 ATTACK_DEBUFF;
+    uint256 DEFENSE_BUFF;
+    uint256 DEFENSE_DEBUFF;
+    uint256 SPEED_BUFF;
+    uint256 SPEED_DEBUFF;
+    uint256 LIFESPAN_BUFF;
+    uint256 LIFESPAN_DEBUFF;
   }
 
   //data
@@ -472,7 +473,7 @@ library CardBase {
 
   function fromTuple(CardBase.Data self, uint256 _id, string _name, 
     uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
-    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) internal pure {
+    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _passive, uint256 _pasivePercent ) internal pure {
 
       self.id = _id;
       self.name = _name;
@@ -488,7 +489,7 @@ library CardBase {
       self.rarity = _rarity;
 
       self.passive = _passive;
-      self.passivePercent = _pasivePercent
+      self.passivePercent = _pasivePercent;
   }
 
 }
@@ -500,6 +501,9 @@ library CardBase {
   using CardBase for CardBase.Data;
 
   bool public isPaniniCard = true;
+  CardBase.Region Region = CardBase.Region(0,1,2,3,4,5,6,7);
+  CardBase.Rarity Rarity = CardBase.Rarity(70,25,5);
+  CardBase.Passive Passive = CardBase.Passive(0,1,2,3,4,5,6,7,8,9);
 
   //server tarafinda her create'te db guncellenecek. Bu sayede base card'larin listesi goruntulenebilecek.
   event CreatedAnimalCard(uint256 _id, string _name, 
@@ -516,7 +520,7 @@ library CardBase {
   function initCardBase() internal {
     //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
     _createCardBase('empty', 0, 0, 0, 0, 0, 
-      0, CardBase.Region.AFRICA, CardBase.Rarity.COMMON, CardBase.Passive.HEAL_BUFF, 0 );        
+      0, Region.AFRICA, Rarity.COMMON, Passive.HEAL_BUFF, 0 );        
 
     //name, hp, ap, deff, speed, weight, 
     //lifespan, region, rarity, passive, passivePercent
@@ -525,29 +529,29 @@ library CardBase {
       lp, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.ATTACK_BUFF, 10 );        
     */
     _createCardBase('fil', 10000, 1000, 300, 80, 6000,
-      60, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.DEFENSE_BUFF, 10 );        
+      60, Region.AFRICA, Rarity.RARE, Passive.DEFENSE_BUFF, 10 );        
     _createCardBase('at', 700, 30, 120, 120, 500,
-      30, CardBase.Region.ASIA, CardBase.Rarity.COMMON, CardBase.Passive.SPEED_BUFF, 5 );        
+      30, Region.ASIA, Rarity.COMMON, Passive.SPEED_BUFF, 5 );        
     _createCardBase('tavsan', 20, 30, 20, 50, 2,
-      6, CardBase.Region.EUROPE, CardBase.Rarity.COMMON, CardBase.Passive.LIFESPAN_BUFF, 10 );        
+      6, Region.EUROPE, Rarity.COMMON, Passive.LIFESPAN_BUFF, 10 );        
     _createCardBase('aslan', 1000, 500, 300, 70, 250,
-      20, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.ATTACK_BUFF, 10 );        
+      20, Region.AFRICA, Rarity.RARE, Passive.ATTACK_BUFF, 10 );        
     _createCardBase('balina', 5000, 10, 100, 60, 30000,
-      120, CardBase.Region.OCEAN, CardBase.Rarity.EXOTIC, CardBase.Passive.HEAL_BUFF, 3 );        
+      120, Region.OCEAN, Rarity.EXOTIC, Passive.HEAL_BUFF, 3 );        
     _createCardBase('yunus', 100, 30, 100, 100, 200,
-      40, CardBase.Region.OCEAN, CardBase.Rarity.RARE, CardBase.Passive.HEAL_BUFF, 2 );        
+      40, Region.OCEAN, Rarity.RARE, Passive.HEAL_BUFF, 2 );        
     _createCardBase('kilic baligi', 60, 120, 200, 120, 50,
-      30, CardBase.Region.OCEAN, CardBase.Rarity.EXOTIC, CardBase.Passive.DEFENSE_DEBUFF, 10 );        
+      30, Region.OCEAN, Rarity.EXOTIC, Passive.DEFENSE_DEBUFF, 10 );        
     _createCardBase('kartal', 20, 100, 80, 120, 20,
-      20, CardBase.Region.ASIA, CardBase.Rarity.RARE, CardBase.Passive.SPEED_BUFF, 10 );        
+      20, Region.ASIA, Rarity.RARE, Passive.SPEED_BUFF, 10 );        
     //mesela guvercin gucsuz bir hayvan. Bunu 5 yil boyunca sagladigi %20 heal buff ile fazlasi ile telafi etmekte.
     // %20 buff cok ama cok iyi bir rakam. Bu rakam 5 yil boyunca partisi cok iyi korur.
     //degisik kombinasyonlar olabilir, oyunculara kaldi artik, ama bu kadar farkli secenekler sanirim oldukca buyuk uzay saglamakta.
     _createCardBase('guvercin', 5, 1, 1, 20, 1,
-      5, CardBase.Region.SOUTH_AMERICA, CardBase.Rarity.COMMON, CardBase.Passive.HEAL_BUFF, 20 );        
+      5, Region.SOUTH_AMERICA, Rarity.COMMON, Passive.HEAL_BUFF, 20 );        
     //mesela karinca, gucercin gibi ayni sekilde, ilk 3 yil rakibin defansini oyle bir dusurur ki, oyuna hizli baslayip bitirmek isteyen oyuncular icin bire-bir.
     _createCardBase('karinca', 1, 1, 1, 1, 0,
-      3, CardBase.Region.ASIA, CardBase.Rarity.COMMON, CardBase.Passive.DEFENSE_DEBUFF, 30 );        
+      3, Region.ASIA, Rarity.COMMON, Passive.DEFENSE_DEBUFF, 30 );        
 
   }
 
@@ -593,14 +597,26 @@ library CardBase {
     // random'u nasil yapacagiz buna karar verilecek.
     //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
   }
-
-  function getCardBaseTupple(uint256 _baseId) public view returns(uint256, string, 
+    //err: solidity stack too deep
+/*  function getCardBaseTupple(uint256 _baseId) public view returns(uint256, string, 
     uint256, uint256, uint256, uint256, uint256,
     uint256, uint256, uint256, uint256, uint256) {
     require( _baseId > 0 && _baseId <= cardBaseList.length);
     return cardBaseList[_baseId].toTuple();
   }
-  
+ */
+  function getCardBaseActiveTuple(uint256 _baseId) public view returns(uint256, string, 
+    uint256, uint256, uint256, uint256, uint256,
+    uint256, uint256, uint256, uint256, uint256) {
+    require( _baseId > 0 && _baseId <= cardBaseList.length);
+    return cardBaseList[_baseId].toTuple();
+  }
+  function getCardBasePassiveTuple(uint256 _baseId) public view returns(uint256, string, 
+    uint256, uint256, uint256, uint256, uint256,
+    uint256, uint256, uint256, uint256, uint256) {
+    require( _baseId > 0 && _baseId <= cardBaseList.length);
+    return cardBaseList[_baseId].toTuple();
+  }
 }
 
 
@@ -985,9 +1001,14 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
 //#########################################
 //server'da register.
 //bir liste tut serverda
-library Player{
 
-  struct Data {
+//TODO: approve'du vs bunun gibi metodlara bir el atilacak.
+// sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
+//   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
+//  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
+contract Player is UsingCard{
+
+ struct Data {
     uint256 id; 
     string name;
     //server'da tutulacak. 
@@ -998,15 +1019,8 @@ library Player{
     //cardId -> index of animalCards[baseId]
 //    mapping(uint256 => uint256) animalCardsIndex;    
   }
-}
-
-//TODO: approve'du vs bunun gibi metodlara bir el atilacak.
-// sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
-//   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
-//  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
-contract Player is UsingCard{
-  using Player for Player.Data;
-  mapping (address => Player.Data) players;
+  
+  mapping (address => Data) players;
   uint256 numberOfPlayer;
 
   function Player() public {
@@ -1180,6 +1194,7 @@ function removeGameToStore(address gameAddress) __isPlayer{
 //      3.2 cikartilabilmeli mi?
 //   4. activate game. deActivate game.
 contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
+  using CardBase for CardBase.Data;
 
   // Reference to contract tracking NFT ownership
   // player ve nft ayni address. Player has ERCTokens.
@@ -1196,7 +1211,7 @@ contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
 
   //1 kere set edilebilsin
   //sadece paniniController'dan set edilebilsin.
-  function setA_PaniniCard(address _address) __onlyIfA_PaniniController public {    
+  function setA_PaniniCard(address _address) public {    
     require(address(paniniCard) == address(0) && _address != address(0) );
     paniniCard = A_PaniniCard(_address);         
   }
@@ -1223,7 +1238,7 @@ contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
   //Bu metod'un kullanildigi metodlar guvenli. Cunku safetransfer to contract islemi burada gerceklesmekte.
   function _escrow(uint256 _cardId) internal{
     address owner = nft.ownerOf(_cardId);
-    nft.safeTransferFrom(_from, address(msg.sender), _cardId);
+    nft.safeTransferFrom(address(this), address(msg.sender), _cardId);
     escrowedCardOwners[_cardId] = owner;
     //TODO: emit escrow.
   }
@@ -1232,7 +1247,7 @@ contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
   //sadece kart'in escrow alinip alinmadigini kontrol eder ve transfer eder.  
   function _transfer(address _to, uint256 _cardId) internal{
     require(escrowedCardOwners[_cardId] != address(0));
-    nft.approve(address(msg.sender), _to, _cardId);
+    nft.approve( _to, _cardId);
     nft.safeTransferFrom(address(msg.sender), _to, _cardId);
     delete escrowedCardOwners[_cardId];
     //TODO: emit escrow.
@@ -1264,170 +1279,515 @@ library Game1 {
     Herd herdOfPlayer2;    
   }
   
-  struct AktiveCard {
-    
-    
+  struct ActiveCard {
+    uint256 hpMax; // heal/poison icin. +  //buff katilmis hali.
+    uint256 hp; // starts with max.
+    uint256 ap; //buff katilmis hali.
+    uint256 deff; //buff katilmis hali.
+    uint256 sp; //buff katilmis hali.
+    uint256 weigth; //buff katilmis hali.
+    uint256 life; //buff katilmis hali.
+    uint256 region;    
+  }
+
+  struct PassiveCard {
+    uint256 life; //buff katilmis hali.
+    uint256 passive;
+    uint256 percentage;
   }
   
 }
 
-  //GAME-1
-  //oyun'un hazir hale getirilmesi.
-  //1. controller'a ekle. (Controller tarafinda.)
-  //2. state'i ekle. (setState metodunu kulanarak.)
-  contract A_PaniniGame1 is A_PaniniGameBase{
-    using Game1 for Game1.Data;
-    int256 NEW_PLAYER_SCORE = 1200;
-    int256 MIN_SCORE = 800;
-    int256 MAX_SCORE = 2800;
-    int256 SCORE_GAP = 50;
+//GAME-1
+//oyun'un hazir hale getirilmesi.
+//1. controller'a ekle. (Controller tarafinda.)
+//2. state'i ekle. (setState metodunu kulanarak.)
+contract A_PaniniGame1 is A_PaniniGameBase{
+  using Game1 for Game1.Data;
+  int256 NEW_PLAYER_SCORE = 1200;
+  int256 MIN_SCORE = 800;
+  int256 MAX_SCORE = 2800;
+  int256 SCORE_GAP = 50;
 
-    address[] players;
-    mapping (address => uint256) playersIndex;
-    mapping (address => int256) playerScore;
-    
-    //binary tree balance olmayacagi icin(balance yapmak oyuncuya masraf.), search log(n)'de calisacak sekilde ziplayacak.
-    //tree yerine atliyarak gitse? Ortadan baslasa search'e? bole bole gitse?
-    //Game1.Data[] pendingGames; 
+  address[] players;
+  mapping (address => uint256) playersIndex;
+  mapping (address => int256) playerScore;
+  
+  //binary tree balance olmayacagi icin(balance yapmak oyuncuya masraf.), search log(n)'de calisacak sekilde ziplayacak.
+  //tree yerine atliyarak gitse? Ortadan baslasa search'e? bole bole gitse?
+  //Game1.Data[] pendingGames; 
 
-    //hash map of arrays in score window
-    //800-> 800-850 , 850-900, 900-950
-    //1123 ->1100
-    mapping (int256 => Game1.Data[]) pendingGames;
-    
-    uint256 numberOfGames;
+  //hash map of arrays in score window
+  //800-> 800-850 , 850-900, 900-950
+  //1123 ->1100
+  mapping (int256 => Game1.Data[]) pendingGames;
+  
+  uint256 numberOfGames;
 
-    mapping (uint256 => Game1.Data) startedGames;
-    mapping (uint256 => Game1.Data) finishedGames;
+  mapping (uint256 => Game1.Data) startedGames;
+  //mapping (uint256 => Game1.Data) finishedGames;
 
-    //butun oyuncularin oyunlarinin listesi? 
-    uint256[] games;
-    //Bir oyuncuya ait oynlarin listesi 
-    mapping (address => uint256[]) myGames;    
+  //butun oyuncularin oyunlarinin listesi? 
+  uint256[] games;
+  //Bir oyuncuya ait oynlarin listesi 
+  mapping (address => uint256[]) myGames;    
 
-    function A_PaniniGame1() public {
-    
-    }
-
-    function _queueOrFindGame(Game1.Herd _herd) internal {
-      //oyuncu ilk kez oynuyor ise.
-      //register yapmayi dusundum ama, her oyunda score olmayabilir.
-      //sonra player olayini degistirebilirim.
-      address player = _herd.owner;
-      if(playersIndex[player] == 0) {
-        playerScore[player] = NEW_PLAYER_SCORE;
-      }
-
-      int256 score = playerScore[player];
-      int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
-      bool gameFound;
-      //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
-      // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
-      if(pendingGames[index].length > 0) {
-        gameFound = true;
-      } else if(pendingGames[index + SCORE_GAP].length > 0) {
-        gameFound = true;
-        index = index + SCORE_GAP;
-      } else if(pendingGames[index - SCORE_GAP].length > 0) {
-        gameFound = true;
-        index = index - SCORE_GAP;
-      }
-
-      if(gameFound) {
-        //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
-        //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
-        uint256 lastIndex = pendingGames[index].length - 1;
-        Game1.Data game = pendingGames[index][lastIndex];
-
-        pendingGames[index].length = pendingGames[index].length -1;
-        delete pendingGames[index][lastIndex];
-
-        //hizli erisim icin.
-        game.id = startedGames.length;
-        game.player2 = player;
-        game.herdOfPlayer2 = _herd;
-        startedGames.startTime = now; // start time.
-
-        games.push(numberOfGames);
-        myGames[game.player1].push(numberOfGames);
-        myGames[game.player2].push(numberOfGames);
-
-      } else {
-        //note: struct olustururken null veremedigimiz icin hersey player1
-        //starttime = created time for pending players.
-        numberOfGames +=1; //id.
-        Game1.Data game = new Game1.Data(numberOfGames, player, player, _herd, _herd, now);
-        pendingGames[index].push(game);
-      } 
-
-      function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(bool res) {
-        
-      }
-      
-
-/*
-      //not: loop cok uzun olursa gas limiti asiyor. 
-      //Max loop sayisi. olmali. score 800 ile 2800 arasi degissin(max 2800).
-      //gap 2k, 10 defa loop yapilsa, 2^10'dan 1k oyuncu olsa bile, cerceve +100, -100 old icin.
-      // orn worse-case: 10k oyuncu olsun. 9k'si 2800 score'a sahip olsun. 1k'da lineer azalarak dagilsin.
-      // 0.5k, 0.25k, 0.125k, 0.06k, 0.03k, 0.015k, 0.008k, 0.004k, 0.002k, 0.001k -> 1 oyuncu var burada. cerceve gap (200) bulurdu simdiye kadar.
-      // algoritma tekrar gozden gecirilebilir, bir standart sapma ile de ilerlenebilir(ilk basta.) gerek var mi?
-      //15 defa yapilsin.
-      int256 score = playerScore[_player];
-      uint256 k = pendingGames.length/2;
-      uint256 div = 4;      
-      bool gameFound;
-      for(uint256 i = 0; i < 15; i++) { // 16k game.
-        // uygun puan ile rakip bulur ise oyunu baslat.
-        // bulamaz ise aramaya devam edecek.
-        uint256 dif = pendingGames.length/mul;
-        if(dif == 0) { //ayni oyuncuya geldi.
-          break;
-        }
-        int256 scoreDif = score - pendingGames[k].player1.score;
-        if(scoreDif > SCORE_GAP) {
-          //scoru cok yuksek
-          k = k - dif;
-        } else if(scoreGap < (SCORE_GAP*(-1))) {
-          //score cok dusuk
-          k = k + dif;
-        } else {
-          //buldu -> k.
-          gameFound = true;
-          break;
-        }      
-        div = div*2;      
-        
-      }*/
-    }
-    //oyun bulursa oyun baslatir
-    //bulamaz ise siraya girer
-    function startGameorEnterQueue(
-      _card1, _card2, _card3, _card4,
-      _card5, _card6, _card7, _card8
-    ) public {
-      //card'lari kontrol et.
-      require ( 
-        nft.ownerOf(_card1) == address(msg.sender) &&
-        nft.ownerOf(_card2) == address(msg.sender) &&
-        nft.ownerOf(_card3) == address(msg.sender) &&
-        nft.ownerOf(_card4) == address(msg.sender) &&
-        nft.ownerOf(_card5) == address(msg.sender) &&
-        nft.ownerOf(_card6) == address(msg.sender) &&
-        nft.ownerOf(_card7) == address(msg.sender) &&
-        nft.ownerOf(_card8) == address(msg.sender)
-      );
-      
-      Game1.Herd herd = new Game1.Herd(msg.sender,
-       _card1, _card2, _card3, _card4,
-       _card5, _card6, _card7, _card8);
-
-      _queueOrFindGame(herd);
-    }
-
-
-
+  function A_PaniniGame1() public {
   }
+
+  function getMyGames() public view returns(uint256[]) {
+    return myGames[msg.sender];
+  }
+  
+
+  //returns 800 - 1200  : 1k = 1.
+  function _calculateWeightFactor(uint256 _weight1, uint256 _weight2 ) internal returns(uint256) {
+    //kusurat icin *1000    
+    uint256 w = (_weight1*100) / _weight2; 
+    if(w <= 50) {
+      return 2*w + 800;
+    } else if(w <= 300) {
+      return w + 900;
+    }
+    return 1200; 
+  }
+
+  // 0-1000(for %0-100). no limit.
+  function _calculateDeffFactor(uint256 _deff ) internal returns(uint256) {
+    //kusurat icin *1000    
+    if(_deff <= 250) {
+      return _deff*10;
+    } else if(_deff <= 500) {
+      return 8*_deff + 500;
+    } else if(_deff <= 1000) {
+      return 5*_deff + 2500;
+    }
+    return 2*_deff + 5000;
+  }
+
+  //ap: ~400
+  //sp: ~250
+  //wf: ~1000
+  //(ap*sp*wf) : ~10^8
+  //df: ~1000(max) : normalde 500 civaridir.x10
+  //(dk*5xAp*5xSp) :(60*5*5 = 1500) : 1.5*10^3
+  //(1.5*10^3*df) ~1.5*10^6
+  //return: ~ (10^8) / (1.5*10^6) : ~100/1.5 = 66(1k deff icin.), 130(500 deff icin.) 
+  //orn: bir fil(TANK)'in cani 1000 ise => ~10 tur'da gidici.  
+  function _calculateDamage(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal returns(uint256) {
+    return (_ap*_sp*_wf) / (15000*_df);//x10 df
+  }
+  
+  // 0 => not end.
+  // 1 => player1 winner
+  // 2 => player2 winner
+  // 3 => draw
+  function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(uint256) {
+    Game1.Data memory game = startedGames[_gameId];
+    
+    //player1 data
+    Game1.ActiveCard[] memory p1ActiveCards = new Game1.ActiveCard[](4);
+    Game1.PassiveCard[] memory p1PassiveCards = new Game1.PassiveCard[](4);
+    uint256[] memory p1Buffs = new uint256[](10);
+    uint256[] memory p1Regions = new uint256[](8); 
+    uint256 p1DeffFactor;
+    uint256 p1Damage;
+    uint256 p1DefanderCardIndex;
+    //yardimci degerler-total.
+    uint256 p1Ap;
+    uint256 p1Sp;
+    uint256 p1Deff;
+    uint256 p1Weight;
+
+    //player2 data
+    Game1.ActiveCard[] memory p2ActiveCards = new Game1.ActiveCard[](4);
+    Game1.PassiveCard[] memory p2PassiveCards = new Game1.PassiveCard[](4);
+    uint256[] memory p2Buffs = new uint256[](10);
+    uint256[] memory p2Regions = new uint256[](8); 
+    uint256 p2DeffFactor;
+    uint256 p2Damage;
+    uint256 p2DefanderCardIndex;
+    //yardimci degerler-total.
+    uint256 p2Ap;
+    uint256 p2Sp;
+    uint256 p2Deff;
+    uint256 p2Weight;
+    
+    uint256 weigthFactor;
+
+    //kartlarin set edilmesi.      
+    //player1    
+    //aktiveCards.
+    uint256 _hp; 
+    uint256 _ap;
+    uint256 _deff;
+    uint256 _sp;
+    uint256 _weigth;
+    uint256 _life;
+    uint256 _region;
+    uint256 _lifespan;
+    uint256 _pasive;
+    uint256 _pasivePercent;
+    
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card1);
+    p1ActiveCards[0] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card2);
+    p1ActiveCards[1] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card3);
+    p1ActiveCards[2] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card4);
+    p1ActiveCards[3] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    //passiveCards.
+    //Bos olabilir. // _getPassiveCardTuple returns (0,0,0);
+    if(game.herdOfPlayer1.card5 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent) 
+        = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card5);
+      p1PassiveCards[0] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+    if(game.herdOfPlayer1.card6 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent)
+       = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card6);
+      p1PassiveCards[1] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+    if(game.herdOfPlayer1.card7 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent)
+       = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card7);
+      p1PassiveCards[2] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+    if(game.herdOfPlayer1.card8 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent)
+       = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card8);
+      p1PassiveCards[3] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+
+    //bufflarin hesaplanmasi.
+    p2Buffs[p1PassiveCards[0].passive] += p1PassiveCards[0].percentage;
+    p2Buffs[p1PassiveCards[1].passive] += p1PassiveCards[1].percentage;
+    p2Buffs[p1PassiveCards[2].passive] += p1PassiveCards[2].percentage;
+    p2Buffs[p1PassiveCards[3].passive] += p1PassiveCards[3].percentage;
+    
+    //region bufflarin hesaplanmasi -> sonra.
+    p1Regions[p1ActiveCards[0].region] += 1;
+    p1Regions[p1ActiveCards[1].region] += 1;
+    p1Regions[p1ActiveCards[2].region] += 1;
+    p1Regions[p1ActiveCards[3].region] += 1;
+
+    //player2    
+    //aktiveCards.
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card1);
+    p2ActiveCards[0] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card2);
+    p2ActiveCards[1] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card3);
+    p2ActiveCards[2] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
+      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card4);
+    p2ActiveCards[3] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
+    //Bos olabilir. // _getPassiveCardTuple returns (0,0,0);
+    if(game.herdOfPlayer2.card5 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent) 
+        = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card5);
+      p2PassiveCards[0] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+    if(game.herdOfPlayer2.card6 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent)
+       = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card6);
+      p2PassiveCards[1] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+    if(game.herdOfPlayer2.card7 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent)
+       = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card7);
+      p2PassiveCards[2] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+    if(game.herdOfPlayer2.card8 != 0) {
+      (,, 
+      ,,,,, 
+      _lifespan,,, _pasive, _pasivePercent)
+       = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card8);
+      p2PassiveCards[3] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
+    }
+
+    //bufflarin hesaplanmasi.
+    p2Buffs[p2PassiveCards[0].passive] += p2PassiveCards[0].percentage;
+    p2Buffs[p2PassiveCards[1].passive] += p2PassiveCards[1].percentage;
+    p2Buffs[p2PassiveCards[2].passive] += p2PassiveCards[2].percentage;
+    p2Buffs[p2PassiveCards[3].passive] += p2PassiveCards[3].percentage;
+    //region bufflarin hesaplanmasi -> sonra.
+    p2Regions[p2ActiveCards[0].region] += 1;
+    p2Regions[p2ActiveCards[1].region] += 1;
+    p2Regions[p2ActiveCards[2].region] += 1;
+    p2Regions[p2ActiveCards[3].region] += 1;
+
+    //calculation
+    //yardimci degerler
+    p1Ap = p1ActiveCards[0].ap +
+      p1ActiveCards[1].ap +
+      p1ActiveCards[2].ap +
+      p1ActiveCards[3].ap;
+    p1Sp = p1ActiveCards[0].sp +
+      p1ActiveCards[1].sp +
+      p1ActiveCards[2].sp +
+      p1ActiveCards[3].sp;
+    p1Weight = p1ActiveCards[0].weigth +
+      p1ActiveCards[1].weigth +
+      p1ActiveCards[2].weigth +
+      p1ActiveCards[3].weigth;
+    p1Deff = p1ActiveCards[0].deff +
+      p1ActiveCards[1].deff +
+      p1ActiveCards[2].deff +
+      p1ActiveCards[3].deff;
+    
+    p2Ap = p2ActiveCards[0].ap +
+      p2ActiveCards[1].ap +
+      p2ActiveCards[2].ap +
+      p2ActiveCards[3].ap;
+    p2Sp = p2ActiveCards[0].sp +
+      p2ActiveCards[1].sp +
+      p2ActiveCards[2].sp +
+      p2ActiveCards[3].sp;
+    p2Weight = p2ActiveCards[0].weigth +
+      p2ActiveCards[1].weigth +
+      p2ActiveCards[2].weigth +
+      p2ActiveCards[3].weigth;
+    p2Deff = p2ActiveCards[0].deff +
+      p2ActiveCards[1].deff +
+      p2ActiveCards[2].deff +
+      p2ActiveCards[3].deff;
+
+    weigthFactor = _calculateWeightFactor( p1Weight, p2Weight);
+
+    p1DeffFactor = _calculateDeffFactor(p1Deff);
+    p2DeffFactor = _calculateDeffFactor(p2Deff);
+    p1Damage = _calculateDamage( p1Ap, p1Sp, weigthFactor, p2DeffFactor );
+    p2Damage = _calculateDamage( p2Ap, p2Sp, weigthFactor, p1DeffFactor );
+
+    //iki saldiri'da ayni anda yapilacak.
+    //60 => 60 sec.(1min) 
+    for(uint256 i = game.startTime; i < _time; i = i + 60) {
+      //saldiri.
+      if(p1ActiveCards[p1DefanderCardIndex].hp <= p2Damage) {
+        //died.
+        p1ActiveCards[p1DefanderCardIndex].hp = 0;
+      } else {
+        p1ActiveCards[p1DefanderCardIndex].hp -= p2Damage;
+      }
+
+      if(p2ActiveCards[p2DefanderCardIndex].hp <= p1Damage) {
+        //died.
+        p2ActiveCards[p2DefanderCardIndex].hp = 0;
+      } else {
+        p2ActiveCards[p2DefanderCardIndex].hp -= p1Damage;
+      }
+
+      //####
+      //buff damage.
+      //####
+
+      //####
+      //life span hesaplama.
+      //####
+
+      //####
+      //heal/poison hesaplamasi.
+      //####
+
+
+      //if aktifCard died. Recalculate.
+      //iki oyuncunun kartlari da olduyse. (ayni islemleri tekrarlamamak icin.)
+      if(p1ActiveCards[p1DefanderCardIndex].hp == 0 || p2ActiveCards[p1DefanderCardIndex].hp == 0) {
+        
+        if(p1ActiveCards[p1DefanderCardIndex].hp == 0) {
+
+          p1Ap -= p1ActiveCards[p1DefanderCardIndex].ap;
+          p1Sp -= p1ActiveCards[p1DefanderCardIndex].sp;
+          p1Weight -= p1ActiveCards[p1DefanderCardIndex].weigth;
+          p1Deff -= p1ActiveCards[p1DefanderCardIndex].deff;
+          
+          p1DeffFactor = _calculateDeffFactor(p1Deff);
+        
+          p1DefanderCardIndex++;
+                  
+        }
+
+        if(p2ActiveCards[p1DefanderCardIndex].hp == 0) {
+
+          p2Ap -= p2ActiveCards[p2DefanderCardIndex].ap;
+          p2Sp -= p2ActiveCards[p2DefanderCardIndex].sp;
+          p2Weight -= p2ActiveCards[p2DefanderCardIndex].weigth;
+          p2Deff -= p2ActiveCards[p2DefanderCardIndex].deff;
+
+          p2DeffFactor = _calculateDeffFactor(p2Deff);
+        
+          p2DefanderCardIndex++;
+        }  
+
+        weigthFactor = _calculateWeightFactor( p1Weight, p2Weight);
+        p1Damage = _calculateDamage( p1Ap, p1Sp, weigthFactor, p2DeffFactor );
+        p2Damage = _calculateDamage( p2Ap, p2Sp, weigthFactor, p1DeffFactor );
+
+      }
+      
+      //kazanma kaybetme berabere durumlari
+      //berabere
+      if(p1DefanderCardIndex == 3 && p2DefanderCardIndex == 3) {
+
+        return 3;
+      //p1 winner
+      } else if(p2DefanderCardIndex == 3) {
+
+        return 1;
+      //p2 winner
+      } else if(p1DefanderCardIndex == 3) {
+
+        return 2;
+      }  
+
+    }
+
+    return 0;
+  }
+  
+  //function _calculateGameState(uint256 _gameId, uint256 _time)
+  function checkEndFinishGame(uint256 _gameId) public view returns(string){
+    //TODO: Check gameId
+    //todo: bu metod cagrilinca oyunu finishedgame'e koy.
+    //cagirmada kontrol et. eger fnishedgames'de ise hesaplama yapma.
+    uint256 gameState = _calculateGameState(_gameId, now);
+    if(gameState == 0) {      
+      return "oyun devam ediyor.";
+      //hic birsey yapma. Masraf zamansiz cagirana girsin.
+    } else if(gameState == 1) {
+      //TODO: score guncelle.
+      //kart random sec 2. oyuncudan ve 1. oyuncuya ver
+      // ilk cagirana total escrow edilen etheri geri ver.
+      return "1. oyuncu kazandi";    
+    } else if(gameState == 2) {
+      //TODO: score guncelle.
+      //kart random sec 1. oyuncudan ve 2. oyuncuya ver
+      //oyunu finishedgames'e koy.
+      // ilk cagirana total escrow edilen etheri geri ver.
+      return "2. oyuncu kazandi";    
+    } else if(gameState == 3) {
+      //TODO: score guncelle.
+      //oyunu finishedgames'e koy.
+      // ilk cagirana total escrow edilen etheri geri ver.
+      return "Berabere.";    
+    }
+
+    //cagiran oyuncunun kartlarini geri ver.
+    //yukaridaki return'lar test.
+    return "buraya girmemesi lazim";
+  }
+
+  //oyun bulursa oyun baslatir
+  //bulamaz ise siraya girer
+  function startGameorEnterQueue(
+    uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4,
+    uint256 _card5, uint256 _card6, uint256 _card7, uint256 _card8
+  ) public {
+    //card'lari kontrol et.
+    //TODO: cardid = 0 ise kullanilmiyor. passivecard'lar icin.
+    require ( 
+      nft.ownerOf(_card1) == address(msg.sender) &&
+      nft.ownerOf(_card2) == address(msg.sender) &&
+      nft.ownerOf(_card3) == address(msg.sender) &&
+      nft.ownerOf(_card4) == address(msg.sender) &&
+      (_card5 == 0 || nft.ownerOf(_card5) == address(msg.sender)) &&
+      (_card6 == 0 || nft.ownerOf(_card6) == address(msg.sender)) &&
+      (_card7 == 0 || nft.ownerOf(_card7) == address(msg.sender)) &&
+      (_card8 == 0 || nft.ownerOf(_card8) == address(msg.sender))
+    );
+    
+    Game1.Herd memory herd = Game1.Herd(msg.sender,
+     _card1, _card2, _card3, _card4,
+     _card5, _card6, _card7, _card8);
+
+    _queueOrFindGame(herd);
+  }
+
+
+  function _queueOrFindGame(Game1.Herd _herd) internal {
+    //oyuncu ilk kez oynuyor ise.
+    //register yapmayi dusundum ama, her oyunda score olmayabilir.
+    //sonra player olayini degistirebilirim.
+    address player = _herd.owner;
+    if(playersIndex[player] == 0) {
+      playerScore[player] = NEW_PLAYER_SCORE;
+    }
+
+    int256 score = playerScore[player];
+    int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
+    bool gameFound;
+    //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
+    // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
+    if(pendingGames[index].length > 0) {
+      gameFound = true;
+    } else if(pendingGames[index + SCORE_GAP].length > 0) {
+      gameFound = true;
+      index = index + SCORE_GAP;
+    } else if(pendingGames[index - SCORE_GAP].length > 0) {
+      gameFound = true;
+      index = index - SCORE_GAP;
+    }
+
+    if(gameFound) {
+      //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
+      //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
+      uint256 lastIndex = pendingGames[index].length - 1;
+      Game1.Data game = pendingGames[index][lastIndex];
+
+      pendingGames[index].length = pendingGames[index].length -1;
+      delete pendingGames[index][lastIndex];
+
+      //hizli erisim icin.
+      game.id = numberOfGames;
+      numberOfGames +=1; //id.
+      game.player2 = player;
+      game.herdOfPlayer2 = _herd;
+      game.startTime = now;
+      startedGames[game.id] = game;
+
+      games.push(numberOfGames);
+      myGames[game.player1].push(numberOfGames);
+      myGames[game.player2].push(numberOfGames);
+
+    } else {
+      //note: struct olustururken null veremedigimiz icin hersey player1
+      //starttime = created time for pending players.
+      /*uint256 id;  //0 olabilir.
+    address player1;
+    address player2;
+    uint256 startTime;
+    Herd herdOfPlayer1;
+    Herd herdOfPlayer2;    */
+      Game1.Data memory newGame = Game1.Data(0, player, player, now, _herd, _herd);
+      pendingGames[index].push(newGame);
+    } 
+  }
+  
+
+}
 
 
 
@@ -1937,8 +2297,13 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
     return _getShareholderBalance(_address);  
   }
   
-  function createCardBase(string _name, uint256 _health, uint256 _weigth, uint256 _speed, uint256 _regionIndex, uint256 _rarity ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
-    paniniCard.createCardBase(_name, _health, _weigth, _speed, _regionIndex, _rarity );
+  
+  function createCardBase(string _name, 
+    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
+    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
+    paniniCard.createCardBase( _name, 
+    _hp, _ap, _deff, _speed, _weigth, 
+    _lifespan, _region, _rarity, _pasive, _pasivePercent );
   }
   
 
