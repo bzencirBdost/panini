@@ -315,12 +315,12 @@ contract PaniniERC721Token is ERC721BasicToken {
 }
 
 
-contract AttachingA_PaniniController {
+contract AttachingAX_PaniniController {
   using AddressUtils for address;
   
-  A_PaniniController paniniController;
+  AX_PaniniController paniniController;
 
-  modifier __onlyIfA_PaniniController {
+  modifier __onlyIfAX_PaniniController {
     require (msg.sender == address(paniniController));
     _;
   }
@@ -328,17 +328,17 @@ contract AttachingA_PaniniController {
   //1 kere set edilebilsin
   //msg.sender bir contract olmali.
   //msg.sender paniniController olmali.
-  function attachA_PaniniController() public {    
+  function attachAX_PaniniController() public {    
     require(address(paniniController) == address(0));
     require (msg.sender.isContract() );    
-    A_PaniniController candidatePaniniController = A_PaniniController(msg.sender);
+    AX_PaniniController candidatePaniniController = AX_PaniniController(msg.sender);
     //require (paniniController.isPaniniController());   
     paniniController = candidatePaniniController;      
   }
 
 }
 
-contract A_PaniniState is AttachingA_PaniniController {
+contract A_PaniniState is AttachingAX_PaniniController {
 
   bool public isPaniniState = true;
 
@@ -355,11 +355,11 @@ contract A_PaniniState is AttachingA_PaniniController {
     return paused;
   }
 
-  function pause() __onlyIfA_PaniniController public {
+  function pause() __onlyIfAX_PaniniController public {
     paused = true;
   }
 
-  function unPause() __onlyIfA_PaniniController public {
+  function unPause() __onlyIfAX_PaniniController public {
     paused = false;
   }
 
@@ -395,7 +395,7 @@ contract HasA_PaniniState {
 }
 
 
-
+/* gerek yok artik buna. -> bitwise operations..
 library CardBase {
 
   //kullanimi daha kolay.(enum'da disari acmak icin convert gerekiyor..)
@@ -432,86 +432,19 @@ library CardBase {
     uint256 LIFESPAN_DEBUFF;
   }
 
-  //data
-  struct Data {
-
-    //kullanilmayacak, bunun yerine indexler id olacak.
-    uint256 id; // arr index: 0: empty initialized and never used.
-    string name;
-    
-    uint256 hp; //health power
-    uint256 ap; //attack power
-    uint256 deff; //defence
-    uint256 speed; //speed
-    uint256 weigth; //weight
-    
-    uint256 lifespan; //life span    
-    uint256 region;
-    uint256 rarity; // 0-100 arasinda bir sayi. 
-
-    //pasif ozellikler
-    uint256 passive;
-    uint256 passivePercent; // 10 = %10
-  }
-
-  //returns clone of base card.
-  function clone(CardBase.Data self) internal pure returns(CardBase.Data) {
-    return CardBase.Data(self.id, self.name,
-      self.hp, self.ap, self.deff, self.speed, self.weigth,
-      self.lifespan, self.region, self.rarity, self.passive, self.passivePercent);
-  }
-
-  //returns clone of base card.
-  function toTuple(CardBase.Data self) internal pure returns(uint256, string, 
-    uint256, uint256, uint256, uint256, uint256,
-    uint256, uint256, uint256, uint256, uint256) {
-
-    return (self.id, self.name,
-      self.hp, self.ap, self.deff, self.speed, self.weigth,
-      self.lifespan, self.region, self.rarity, self.passive, self.passivePercent);
-  }
-
-  function fromTuple(CardBase.Data self, uint256 _id, string _name, 
-    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
-    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _passive, uint256 _pasivePercent ) internal pure {
-
-      self.id = _id;
-      self.name = _name;
-
-      self.hp = _hp;
-      self.ap = _ap;
-      self.deff = _deff;
-      self.speed = _speed;
-      self.weigth = _weigth;
-
-      self.lifespan = _lifespan;
-      self.region = _region;
-      self.rarity = _rarity;
-
-      self.passive = _passive;
-      self.passivePercent = _pasivePercent;
-  }
-
-}
+}*/
 
 /**
  * The A_PaniniCard contract does this and that...
  */
- contract A_PaniniCard is AttachingA_PaniniController, HasA_PaniniState {
-  using CardBase for CardBase.Data;
+ contract A_PaniniCard is AttachingAX_PaniniController, HasA_PaniniState {
 
   bool public isPaniniCard = true;
-  CardBase.Region Region = CardBase.Region(0,1,2,3,4,5,6,7);
-  CardBase.Rarity Rarity = CardBase.Rarity(70,25,5);
-  CardBase.Passive Passive = CardBase.Passive(0,1,2,3,4,5,6,7,8,9);
-
   //server tarafinda her create'te db guncellenecek. Bu sayede base card'larin listesi goruntulenebilecek.
-  event CreatedAnimalCard(uint256 _id, string _name, 
-    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
-    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent );
+  event CreatedAnimalCard(uint256 metedata );
 
   // metedata
-  CardBase.Data[] cardBaseList; 
+  uint256[] metadatas; 
   
   function A_PaniniCard () public {
     initCardBase();
@@ -519,109 +452,65 @@ library CardBase {
 
   function initCardBase() internal {
     //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
-    _createCardBase('empty', 0, 0, 0, 0, 0, 
-      0, Region.AFRICA, Rarity.COMMON, Passive.HEAL_BUFF, 0 );        
-
-    //name, hp, ap, deff, speed, weight, 
-    //lifespan, region, rarity, passive, passivePercent
-    /*
-    _createCardBase('name', hp, ap, def, sp, wg,
-      lp, CardBase.Region.AFRICA, CardBase.Rarity.RARE, CardBase.Passive.ATTACK_BUFF, 10 );        
-    */
-    _createCardBase('fil', 10000, 1000, 300, 80, 6000,
-      60, Region.AFRICA, Rarity.RARE, Passive.DEFENSE_BUFF, 10 );        
-    _createCardBase('at', 700, 30, 120, 120, 500,
-      30, Region.ASIA, Rarity.COMMON, Passive.SPEED_BUFF, 5 );        
-    _createCardBase('tavsan', 20, 30, 20, 50, 2,
-      6, Region.EUROPE, Rarity.COMMON, Passive.LIFESPAN_BUFF, 10 );        
-    _createCardBase('aslan', 1000, 500, 300, 70, 250,
-      20, Region.AFRICA, Rarity.RARE, Passive.ATTACK_BUFF, 10 );        
-    _createCardBase('balina', 5000, 10, 100, 60, 30000,
-      120, Region.OCEAN, Rarity.EXOTIC, Passive.HEAL_BUFF, 3 );        
-    _createCardBase('yunus', 100, 30, 100, 100, 200,
-      40, Region.OCEAN, Rarity.RARE, Passive.HEAL_BUFF, 2 );        
-    _createCardBase('kilic baligi', 60, 120, 200, 120, 50,
-      30, Region.OCEAN, Rarity.EXOTIC, Passive.DEFENSE_DEBUFF, 10 );        
-    _createCardBase('kartal', 20, 100, 80, 120, 20,
-      20, Region.ASIA, Rarity.RARE, Passive.SPEED_BUFF, 10 );        
-    //mesela guvercin gucsuz bir hayvan. Bunu 5 yil boyunca sagladigi %20 heal buff ile fazlasi ile telafi etmekte.
-    // %20 buff cok ama cok iyi bir rakam. Bu rakam 5 yil boyunca partisi cok iyi korur.
-    //degisik kombinasyonlar olabilir, oyunculara kaldi artik, ama bu kadar farkli secenekler sanirim oldukca buyuk uzay saglamakta.
-    _createCardBase('guvercin', 5, 1, 1, 20, 1,
-      5, Region.SOUTH_AMERICA, Rarity.COMMON, Passive.HEAL_BUFF, 20 );        
-    //mesela karinca, gucercin gibi ayni sekilde, ilk 3 yil rakibin defansini oyle bir dusurur ki, oyuna hizli baslayip bitirmek isteyen oyuncular icin bire-bir.
-    _createCardBase('karinca', 1, 1, 1, 1, 0,
-      3, Region.ASIA, Rarity.COMMON, Passive.DEFENSE_DEBUFF, 30 );        
+    _createCardBase(0);        
+    _createCardBase(0x46000010000000000000050000000002710003e80012c00050017700003c);        
+    _createCardBase(0x1900000001000a000000000000000a013880000a000640003c0753000078);        
+    _createCardBase(0x4b0000010000000000140000000000000010000100001000010000000003);        
+    _createCardBase(0x4b01000000000a00000a0000000000000140006400050000780001400014);        
+    _createCardBase(0x1900001000000000000000000a0000000140006400050000780001400014);        
+    _createCardBase(0x1900000001000a0000000000000000000640001e0006400064000c800028);        
+    _createCardBase(0x19000100000000000a00000000000a003e8001f40012c00046000fa00014);        
+    _createCardBase(0x46001000000000000000000000000a000140001e00014000320000200006);        
+    _createCardBase(0x460000100000000000000000050000002bc0001e0007800078001f40001e);        
+    _createCardBase(0x0500000001000000000a00000000000003c00078000c800078000320001e);        
 
   }
 
   // usuable id between 1 to (n-1)
   function existCardBase(uint256 _baseId) public view returns(bool) {
-    if( _baseId > 0 && _baseId <= cardBaseList.length) {
+    if( _baseId > 0 && _baseId <= metadatas.length) {
       return true;
     }
     return false;                
   }
 
-  //usuable card id starts with 1.
-  function _createCardBase(string _name, 
-    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
-    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) internal{
+  // usuable id between 1 to (n-1)
+  function getMetadataFromBaseId(uint256 _baseId) public view returns(uint256) {
+    if( _baseId > 0 && _baseId <= metadatas.length) {
+      return metadatas[_baseId];
+    }
+  }
 
-    uint256 id = cardBaseList.length;
-    cardBaseList.push(CardBase.Data(id, _name,
-      _hp, _ap, _deff, _speed, _weigth,
-      _lifespan, _region, _rarity, _pasive, _pasivePercent));
+  //usuable card id starts with 1.
+  function _createCardBase(uint256 _metedata ) internal{
+
+    metadatas.push(_metedata);
   }
 
   // usuable card id starts with 1.
-  // __onlyIfA_PaniniController
-  function createCardBase(string _name, 
-    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
-    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) __onlyIfA_PaniniController public {
-    _createCardBase(_name,
-      _hp, _ap, _deff, _speed, _weigth,
-      _lifespan, _region, _rarity, _pasive, _pasivePercent );
+  // __onlyIfAX_PaniniController
+  function createCardBase(uint256 _metedata ) __onlyIfAX_PaniniController public {
+    _createCardBase(_metedata );
   }
 
   //returns index of animalCardBase
+  // random'u nasil yapacagiz buna karar verilecek.
+  //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
   function generateRandomBaseId(uint256 random) public view returns (uint256) {
     //private test for random
-    uint256 id = cardBaseList.length;
-    uint256 delta = cardBaseList.length;
+    uint256 id = metadatas.length;
+    uint256 delta = metadatas.length;
     require(delta > 0);
 
     id = (  random  * ( id + 2 ) * ( 3 * id + 2 ) ) % delta;
     return id;
+  }
 
-    // random'u nasil yapacagiz buna karar verilecek.
-    //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
-  }
-    //err: solidity stack too deep
-/*  function getCardBaseTupple(uint256 _baseId) public view returns(uint256, string, 
-    uint256, uint256, uint256, uint256, uint256,
-    uint256, uint256, uint256, uint256, uint256) {
-    require( _baseId > 0 && _baseId <= cardBaseList.length);
-    return cardBaseList[_baseId].toTuple();
-  }
- */
-  function getCardBaseActiveTuple(uint256 _baseId) public view returns(uint256, string, 
-    uint256, uint256, uint256, uint256, uint256,
-    uint256, uint256, uint256, uint256, uint256) {
-    require( _baseId > 0 && _baseId <= cardBaseList.length);
-    return cardBaseList[_baseId].toTuple();
-  }
-  function getCardBasePassiveTuple(uint256 _baseId) public view returns(uint256, string, 
-    uint256, uint256, uint256, uint256, uint256,
-    uint256, uint256, uint256, uint256, uint256) {
-    require( _baseId > 0 && _baseId <= cardBaseList.length);
-    return cardBaseList[_baseId].toTuple();
-  }
+
 }
 
 
-
-contract A_PaniniCardPackage is AttachingA_PaniniController, HasA_PaniniState {
+contract A_PaniniCardPackage is AttachingAX_PaniniController, HasA_PaniniState {
  
   event PackageCreated(uint256 id, address receiver, uint256 baseId1, uint256 baseId2, uint256 baseId3, uint256 baseId4, uint256 baseId5 );
 
@@ -648,12 +537,12 @@ contract A_PaniniCardPackage is AttachingA_PaniniController, HasA_PaniniState {
 
   //1 kere set edilebilsin
   //sadece paniniController'dan set edilebilsin.
-  function setA_PaniniCard(address _address) __onlyIfA_PaniniController public {    
+  function setA_PaniniCard(address _address) __onlyIfAX_PaniniController public {    
     require(address(paniniCard) == address(0) && _address != address(0) );
     paniniCard = A_PaniniCard(_address);         
   }
 
-  function createPackage(address _address) public view returns(uint256, uint256, uint256, uint256, uint256){
+  function createPackage(address _address) public returns(uint256, uint256, uint256, uint256, uint256){
     numberOfPackageCreated += 1; //ayni zamanda package id.
     uint256 packageId = numberOfPackageCreated;
 
@@ -709,7 +598,7 @@ library Auction {
 
 }
 
-contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721Receiver {
+contract A_PaniniMarket is AttachingAX_PaniniController, HasA_PaniniState, ERC721Receiver {
   using Auction for Auction.Data;
 
   event CreateAuction(address owner, uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration);
@@ -749,7 +638,7 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
 
   //TODO: 1 kez set edilecek sekilde degistirilecek.
   //sadece paniniController set edebilsin.
-  function setNFT(address _address) __onlyIfA_PaniniController public {  
+  function setNFT(address _address) __onlyIfAX_PaniniController public {  
     require(address(nft) == address(0) && _address != address(0) );        
     nft = PaniniERC721Token(_address);
     //nft erc721 mi?
@@ -908,7 +797,7 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
 /**
  * The PaniniBase 
  */
- contract PaniniBase is AttachingA_PaniniController, HasA_PaniniState {
+ contract PaniniBase is AttachingAX_PaniniController, HasA_PaniniState {
   using Mutex for Mutex.Data;
 
   bool public isPaniniBase = true;
@@ -927,21 +816,21 @@ contract A_PaniniMarket is AttachingA_PaniniController, HasA_PaniniState, ERC721
 
   //1 kere set edilebilsin
   //sadece paniniController'dan set edilebilsin.
-  function setA_PaniniCard(address _address) __onlyIfA_PaniniController public {    
+  function setA_PaniniCard(address _address) __onlyIfAX_PaniniController public {    
     require(address(paniniCard) == address(0) && _address != address(0) );
     paniniCard = A_PaniniCard(_address);         
   }
 
   //1 kere set edilebilsin
   //sadece paniniController'dan set edilebilsin.
-  function setA_PaniniCardPackage(address _address) __onlyIfA_PaniniController public {
+  function setA_PaniniCardPackage(address _address) __onlyIfAX_PaniniController public {
     require(address(paniniCardPackage) == address(0) && _address != address(0) );
     paniniCardPackage = A_PaniniCardPackage(_address);
   }
 
   //1 kere set edilebilsin
   //sadece paniniController'dan set edilebilsin.
-  function setA_PaniniMarket(address _address) __onlyIfA_PaniniController public {
+  function setA_PaniniMarket(address _address) __onlyIfAX_PaniniController public {
     require(address(paniniMarket) == address(0) && _address != address(0) );
     paniniMarket = A_PaniniMarket(_address);
   }
@@ -955,8 +844,8 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
   // Bu deger her card uretildiginde emit ile server tarafinda tutulacak. Ve arayuzde oradan gosterilecek.
   //mapping (uint256 => uint256[]) baseIdToCardIdList;
 
-  uint256 lastMintedCardId; // listeye gerek yok. eger liste olsaydı su sekilde olacaktı [0,1,2,3,4,5,6..n]  
-  mapping (uint256 => uint256) cardIdToBaseId;
+  uint256 mintedCardCount; // listeye gerek yok. eger liste olsaydı su sekilde olacaktı [0,1,2,3,4,5,6..n]  
+  mapping (uint256 => uint256) cards;//card+metadata
   //token generate etmek icin;
   
 
@@ -969,30 +858,43 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
   //token kullanacak.
   //to: token icin. 
   //baseId: random generated value of basecard index. 
+  //metadata -> card
   function _mintCardWithBaseId(address _to, uint256 _baseId) internal returns(uint256){
     
-    lastMintedCardId++;
-    uint256 cardId = lastMintedCardId;
+    mintedCardCount++;
+    uint256 cardId = mintedCardCount;
     super._mint(_to, cardId);
     // set baseId of metedata
-    cardIdToBaseId[cardId] = _baseId;
-    return cardId;
+    //meteData'nin alinmasi
+    uint256 metedata = paniniCard.getMetadataFromBaseId(_baseId);
+    //0xFFF0000000000000000000000000000000000000000000000000000000000000
+    //115763819684279741274297652248676021157016744923290554136127638308692447723520
+    //0xF000000000000000000000000000000000000000000000000000000000000
+    //26502705971675764943749462511143777737412258453134284371824093019389296640
+    cards[cardId] = (_baseId << 115763819684279741274297652248676021157016744923290554136127638308692447723520)
+      //0 olsun ilk lvl. islem yapmaya gerek yok.| (0 << 26502705971675764943749462511143777737412258453134284371824093019389296640)
+      | (metedata);
+    return cards[cardId];
   }
 
   function _mintRandomCard(address _to) internal returns(uint256) {
-    uint256 baseId = paniniCard.generateRandomBaseId(lastMintedCardId);
+    uint256 baseId = paniniCard.generateRandomBaseId(mintedCardCount+1);
     //kart'in uretilmesi.
     return _mintCardWithBaseId(_to, baseId);
   }
-/*
-  function getAnimalCardInfo(uint256 _cardId) public view returns(uint256, string, uint256, uint256, uint256, uint256, uint256) {
-    uint256 baseId = cardIdToBaseId[_cardId];
-    if(baseId != 0) {
-      return paniniCard.getCardBaseTupple(baseId);
+  
+  function isCardExist(uint256 _cardId) public view returns(bool) {
+    uint256 card = cards[_cardId];
+    if(card != 0) {
+      return true;
     }    
-    return (0,'0',0,0,0,0,0);
   }
-*/
+  function getCard(uint256 _cardId) public view returns(uint256) {
+    uint256 card = cards[_cardId];
+    if(card != 0) {
+      return card;
+    }    
+  }
 }
 
 
@@ -1006,7 +908,7 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
 // sebep: mesela bir kart'i auction'a koydu. contract'i approve edilmektedir.
 //   daha sonra disaridan bu approve'yi kaldirirsa, kendi listesinde kart gozukmeyecek.
 //  Ve ne bid islemi ne de cancel islemi gerceklestirilemeyecektir.
-contract Player is UsingCard{
+contract A2_Player is UsingCard{
 
  struct Data {
     uint256 id; 
@@ -1021,28 +923,33 @@ contract Player is UsingCard{
   }
   
   mapping (address => Data) players;
-  uint256 numberOfPlayer;
+  uint256 numberOfA2_Player;
 
-  function Player() public {
+  function A2_Player() public {
 
   }
 
-  modifier __isPlayer() {
+  modifier __isA2_Player() {
     require(players[msg.sender].id != 0);
     _;
   }
 
-  function isPlayer(address _address) internal view{
+  function isA2_Player(address _address) internal view{
     require(players[_address].id != 0);
   }
 
   function register(string _name) __whenNotPaused public {
     require(players[msg.sender].id == 0);
-    numberOfPlayer = numberOfPlayer + 1;
-    players[msg.sender].id = numberOfPlayer;
+    numberOfA2_Player = numberOfA2_Player + 1;
+    players[msg.sender].id = numberOfA2_Player;
 //    players[msg.sender].owner = msg.sender;
     players[msg.sender].name = _name;
-    //5x card 
+    //10x card 
+    _mintRandomCard(msg.sender);
+    _mintRandomCard(msg.sender);
+    _mintRandomCard(msg.sender);
+    _mintRandomCard(msg.sender);
+    _mintRandomCard(msg.sender);
     _mintRandomCard(msg.sender);
     _mintRandomCard(msg.sender);
     _mintRandomCard(msg.sender);
@@ -1050,13 +957,13 @@ contract Player is UsingCard{
     _mintRandomCard(msg.sender);
   }    
 
-  function getPlayerName() __isPlayer public view returns(string) {
+  function getA2_PlayerName() __isA2_Player public view returns(string) {
     return players[msg.sender].name;
   }
 
 
   //bu method value degeri girilerek web3 tarafinda cagrilacak.
-  function buyPackage(uint256 _numberOfPackage) __isPlayer __whenNotPaused public payable {
+  function buyPackage(uint256 _numberOfPackage) __isA2_Player __whenNotPaused public payable {
     mutex.enter();
 
     uint256 price = paniniCardPackage.computePriceOfPackage(_numberOfPackage);
@@ -1084,7 +991,7 @@ contract Player is UsingCard{
 
 
 //TODO: player'in datasindan silme + guvenlik.
-function createAuction(uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) __isPlayer __whenNotPaused public {
+function createAuction(uint256 _cardId, uint256 _startPrice, uint256 _endPrice, uint256 _duration) __isA2_Player __whenNotPaused public {
 
   approve(address(paniniMarket), _cardId);
   paniniMarket.createAuction(msg.sender, _cardId, _startPrice, _endPrice, _duration);
@@ -1092,7 +999,7 @@ function createAuction(uint256 _cardId, uint256 _startPrice, uint256 _endPrice, 
 }
 
 //TODO: player'in datasindan ekleme + guvenlik.
-function cancelAuction(uint256 _cardId) __isPlayer __whenNotPaused public {
+function cancelAuction(uint256 _cardId) __isA2_Player __whenNotPaused public {
 
   paniniMarket.cancelAuction(msg.sender, _cardId);
   safeTransferFrom(address(paniniMarket), msg.sender, _cardId);
@@ -1100,7 +1007,7 @@ function cancelAuction(uint256 _cardId) __isPlayer __whenNotPaused public {
 }
 
 //TODO: player'in datasina ekleme + guvenlik.
-function bid(uint256 _cardId) __isPlayer __whenNotPaused public payable{
+function bid(uint256 _cardId) __isA2_Player __whenNotPaused public payable{
   mutex.enter();
 
   uint256 currentPrice = paniniMarket.computeCurrentPrice(_cardId);
@@ -1137,7 +1044,7 @@ function bid(uint256 _cardId) __isPlayer __whenNotPaused public payable{
 
 //TODO: controller tarafindan bu addresin eklenip eklenemeyecegi kontrol edilecek.
 //Oyun contract'ina butun tokenlerinin alim-satimi icin yetki verir.
-function addGameToStore(address gameAddress) __isPlayer{
+function addGameToStore(address gameAddress) public __isA2_Player{
   //TODO : controlls. 
   //TODO: myGames olmali. Bu oyunlar gameBase'den belli metodlari almali. 
   //   Orn score gosterme gibi. Oyuncunun ana ekraninda oyunlari icin score'lari gosterebilecek.
@@ -1147,7 +1054,7 @@ function addGameToStore(address gameAddress) __isPlayer{
 
 //TODO: controller tarafindan bu addresin eklenip eklenemeyecegi kontrol edilecek.
 //Oyun contract'indan butun tokenlerinin alim-satimi icin verdiği yetkiyi kaldirir.
-function removeGameToStore(address gameAddress) __isPlayer{
+function removeGameToStore(address gameAddress) public __isA2_Player{
   //TODO : controlls. 
     setApprovalForAll(gameAddress, false); 
 }
@@ -1155,7 +1062,7 @@ function removeGameToStore(address gameAddress) __isPlayer{
 /*
 // TODO: bu method degistirilecek. belkide gerek yok. Token standartinin extend hali sanki address -> token list veriyordu.
 // sonrada kontrol edilecek ve eklenecek
-    function getMyAllCardIds() __isPlayer public view returns(uint256[]) {
+    function getMyAllCardIds() __isA2_Player public view returns(uint256[]) {
 
       uint256[] memory cards = new uint256[](animalCardBase.length);
       for(uint256 i = 1; i < animalCardBase.length; i++) {
@@ -1166,7 +1073,11 @@ function removeGameToStore(address gameAddress) __isPlayer{
 
     //TODO: score calculation function.
 
-  }
+ }
+  
+ 
+
+
 
 
 
@@ -1181,10 +1092,10 @@ function removeGameToStore(address gameAddress) __isPlayer{
 //3. parti bir oyun gibi dusunebiliriz.
 // ERC721Receiver olmali.
 // PaniniState'i olmali.
-// Player'i olmali
+// A2_Player'i olmali
 // A_PaniniCard olmali.
 // Onemli: Token standartinda bulunan setApprovalForAll'in player tarafindan bu contract icin aktif hale getirilmis olmasi gerekmekte..
-// Player oyunu Player contract'inda ekleyecek. (Guvenligi bir sekilde saglayacagim. Ayni token standart'i gibi bizim de bir oyun standartimiz olmali.)
+// A2_Player oyunu A2_Player contract'inda ekleyecek. (Guvenligi bir sekilde saglayacagim. Ayni token standart'i gibi bizim de bir oyun standartimiz olmali.)
 // Soru: peki player approval'i kaldirir ise? 
 //   1. Mevcut oyun devam edecek. Zaten contract rehin almisti kartlari.
 //   2. oyun baslatamayacak. Bu zaten approval vermediyse gerceklesmeyecektir.
@@ -1193,27 +1104,18 @@ function removeGameToStore(address gameAddress) __isPlayer{
 //      3.1 Controller'a oyun eklenebilmeli.
 //      3.2 cikartilabilmeli mi?
 //   4. activate game. deActivate game.
-contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
-  using CardBase for CardBase.Data;
-
+contract PaniniGameBase is HasA_PaniniState, ERC721Receiver{
+  
   // Reference to contract tracking NFT ownership
-  // player ve nft ayni address. Player has ERCTokens.
+  // player ve nft ayni address. A2_Player has ERCTokens.
   //kodlama kolayligi olmasi acisindan nft islemleri burada nft degiskeninden yapilacak.
-  Player playerContract;
+  A2_Player playerContract;
   PaniniERC721Token nft;
-  A_PaniniCard paniniCard;
 
   mapping (uint256 => address) escrowedCardOwners;  
 
-  function A_PaniniGameBase() public {
+  function PaniniGameBase() public {
 
-  }
-
-  //1 kere set edilebilsin
-  //sadece paniniController'dan set edilebilsin.
-  function setA_PaniniCard(address _address) public {    
-    require(address(paniniCard) == address(0) && _address != address(0) );
-    paniniCard = A_PaniniCard(_address);         
   }
 
   function onERC721Received(address _from, uint256 _tokenId, bytes _data) public returns(bytes4) {
@@ -1223,9 +1125,9 @@ contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
   //TODO: 1 kez set edilecek sekilde degistirilecek.
   //TODO: sadece paniniController set edebilsin.
   //Bunu bir liste olarak ekleyecegim controller'a.
-  function setPlayerContract(address _address) public {  
+  function setA2_PlayerContract(address _address) public {  
     require(address(playerContract) == address(0) && _address != address(0) );        
-    playerContract = Player(_address);
+    playerContract = A2_Player(_address);
     nft = PaniniERC721Token(_address);
     //nft erc721 mi?
     //TODO: check if nft is erc721
@@ -1255,8 +1157,13 @@ contract A_PaniniGameBase is HasA_PaniniState, ERC721Receiver{
 
 }
 
-library Game1 {
-  struct Herd {
+//GAME-1
+//oyun'un hazir hale getirilmesi.
+//1. controller'a ekle. (Controller tarafinda.)
+//2. state'i ekle. (setState metodunu kulanarak.)
+contract A1_PaniniGame1 is PaniniGameBase{
+  //32 bit -> bitwise
+  /*struct Herd {
     address owner;
     //active cards
     uint256 card1;
@@ -1268,42 +1175,29 @@ library Game1 {
     uint256 card6;
     uint256 card7;
     uint256 card8;
-  }
+  }*/
 
   struct Data {
     uint256 id;  //0 olabilir.
     address player1;
     address player2;
     uint256 startTime;
-    Herd herdOfPlayer1;
-    Herd herdOfPlayer2;    
+    uint256 herdOfA2_Player1;
+    uint256 herdOfA2_Player2;    
   }
   
-  struct ActiveCard {
-    uint256 hpMax; // heal/poison icin. +  //buff katilmis hali.
-    uint256 hp; // starts with max.
-    uint256 ap; //buff katilmis hali.
-    uint256 deff; //buff katilmis hali.
-    uint256 sp; //buff katilmis hali.
-    uint256 weigth; //buff katilmis hali.
-    uint256 life; //buff katilmis hali.
-    uint256 region;    
-  }
+  struct A2_PlayerState {
+    uint256 deffFactor;
+    uint256 damage;
+    uint256 defanderCardIndex;
+    uint256 defenderHp;//daha az islem icin.
+    //yardimci degerler-total.
+    uint256 ap;
+    uint256 sp;
+    uint256 deff;
+    uint256 weight;
+  }    
 
-  struct PassiveCard {
-    uint256 life; //buff katilmis hali.
-    uint256 passive;
-    uint256 percentage;
-  }
-  
-}
-
-//GAME-1
-//oyun'un hazir hale getirilmesi.
-//1. controller'a ekle. (Controller tarafinda.)
-//2. state'i ekle. (setState metodunu kulanarak.)
-contract A_PaniniGame1 is A_PaniniGameBase{
-  using Game1 for Game1.Data;
   int256 NEW_PLAYER_SCORE = 1200;
   int256 MIN_SCORE = 800;
   int256 MAX_SCORE = 2800;
@@ -1315,24 +1209,24 @@ contract A_PaniniGame1 is A_PaniniGameBase{
   
   //binary tree balance olmayacagi icin(balance yapmak oyuncuya masraf.), search log(n)'de calisacak sekilde ziplayacak.
   //tree yerine atliyarak gitse? Ortadan baslasa search'e? bole bole gitse?
-  //Game1.Data[] pendingGames; 
+  //Data[] pendingGames; 
 
   //hash map of arrays in score window
   //800-> 800-850 , 850-900, 900-950
   //1123 ->1100
-  mapping (int256 => Game1.Data[]) pendingGames;
+  mapping (int256 => Data[]) pendingGames;
   
   uint256 numberOfGames;
 
-  mapping (uint256 => Game1.Data) startedGames;
-  //mapping (uint256 => Game1.Data) finishedGames;
+  mapping (uint256 => Data) startedGames;
+  //mapping (uint256 => Data) finishedGames;
 
   //butun oyuncularin oyunlarinin listesi? 
   uint256[] games;
   //Bir oyuncuya ait oynlarin listesi 
   mapping (address => uint256[]) myGames;    
 
-  function A_PaniniGame1() public {
+  function A1_PaniniGame1() public {
   }
 
   function getMyGames() public view returns(uint256[]) {
@@ -1340,8 +1234,105 @@ contract A_PaniniGame1 is A_PaniniGameBase{
   }
   
 
+  //oyun bulursa oyun baslatir
+  //bulamaz ise siraya girer
+  function startGameorEnterQueue(
+    uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4,
+    uint256 _card5, uint256 _card6, uint256 _card7, uint256 _card8
+  ) public {
+    //card'lari kontrol et.
+    //TODO: cardid = 0 ise kullanilmiyor. passivecard'lar icin.
+    require ( 
+      nft.ownerOf(_card1) == address(msg.sender) &&
+      nft.ownerOf(_card2) == address(msg.sender) &&
+      nft.ownerOf(_card3) == address(msg.sender) &&
+      nft.ownerOf(_card4) == address(msg.sender) &&
+      (_card5 == 0 || nft.ownerOf(_card5) == address(msg.sender)) &&
+      (_card6 == 0 || nft.ownerOf(_card6) == address(msg.sender)) &&
+      (_card7 == 0 || nft.ownerOf(_card7) == address(msg.sender)) &&
+      (_card8 == 0 || nft.ownerOf(_card8) == address(msg.sender))
+    );
+    
+    
+    //combine cardId's and enter queue
+    _queueOrFindGame( msg.sender,
+      (_card1 
+      | (_card2 << 32)
+      | (_card3 << 64)
+      | (_card4 << 96)),
+      (_card5 
+      | (_card6 << 32)
+      | (_card7 << 64)
+      | (_card8 << 96))
+    );
+  }
+
+  function _queueOrFindGame(address _address, uint256 _herdActive, uint256 _herdPassive) internal {
+    //oyuncu ilk kez oynuyor ise.
+    //register yapmayi dusundum ama, her oyunda score olmayabilir.
+    //sonra player olayini degistirebilirim.
+    if(playersIndex[_address] == 0) {
+      playerScore[_address] = NEW_PLAYER_SCORE;
+    }
+
+    int256 score = playerScore[_address];
+    int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
+    bool gameFound;
+    //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
+    // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
+    if(pendingGames[index].length > 0) {
+      gameFound = true;
+    } else if(pendingGames[index + SCORE_GAP].length > 0) {
+      gameFound = true;
+      index = index + SCORE_GAP;
+    } else if(pendingGames[index - SCORE_GAP].length > 0) {
+      gameFound = true;
+      index = index - SCORE_GAP;
+    }
+
+    if(gameFound) {
+      //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
+      //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
+      uint256 lastIndex = pendingGames[index].length - 1;
+      Data memory game = pendingGames[index][lastIndex];
+
+      delete pendingGames[index][lastIndex];
+      pendingGames[index].length = pendingGames[index].length -1;
+
+      //hizli erisim icin.
+      numberOfGames +=1; //id.
+      game.id = numberOfGames;
+      game.player2 = _address;
+      game.herdOfA2_Player2 = _herdActive << 128 | _herdPassive;
+      game.startTime = now;
+      startedGames[game.id] = game;
+
+      games.push(numberOfGames);
+      myGames[game.player1].push(numberOfGames);
+      myGames[game.player2].push(numberOfGames);
+
+    } else {
+      //note: struct olustururken null veremedigimiz icin hersey player1
+      //starttime = created time for pending players.
+      /*uint256 id;  //0 olabilir.
+    address player1;
+    address player2;
+    uint256 startTime;
+    Herd herdOfA2_Player1;
+    Herd herdOfA2_Player2;    */
+      Data memory newGame = Data(0, _address, _address, now, _herdActive << 128 | _herdPassive, 0);
+      //buraya kadar 100k
+      //bu satir 400k gaz...
+      pendingGames[index].push(newGame);
+    } 
+
+
+  }
+  
+
+
   //returns 800 - 1200  : 1k = 1.
-  function _calculateWeightFactor(uint256 _weight1, uint256 _weight2 ) internal returns(uint256) {
+  function _calculateWeightFactor(uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256) {
     //kusurat icin *1000    
     uint256 w = (_weight1*100) / _weight2; 
     if(w <= 50) {
@@ -1353,7 +1344,7 @@ contract A_PaniniGame1 is A_PaniniGameBase{
   }
 
   // 0-1000(for %0-100). no limit.
-  function _calculateDeffFactor(uint256 _deff ) internal returns(uint256) {
+  function _calculateDeffFactor(uint256 _deff ) internal pure returns(uint256) {
     //kusurat icin *1000    
     if(_deff <= 250) {
       return _deff*10;
@@ -1374,7 +1365,7 @@ contract A_PaniniGame1 is A_PaniniGameBase{
   //(1.5*10^3*df) ~1.5*10^6
   //return: ~ (10^8) / (1.5*10^6) : ~100/1.5 = 66(1k deff icin.), 130(500 deff icin.) 
   //orn: bir fil(TANK)'in cani 1000 ise => ~10 tur'da gidici.  
-  function _calculateDamage(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal returns(uint256) {
+  function _calculateDamage(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal pure returns(uint256) {
     return (_ap*_sp*_wf) / (15000*_df);//x10 df
   }
   
@@ -1382,222 +1373,107 @@ contract A_PaniniGame1 is A_PaniniGameBase{
   // 1 => player1 winner
   // 2 => player2 winner
   // 3 => draw
+  uint256[] hp1; 
+  uint256[] hp2; 
+
+  function gethp1() public view returns(uint256[]) {
+    return hp1;
+  }
+
+  function gethp2() public view returns(uint256[]) {
+    return hp2;
+  }
+  
+
   function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(uint256) {
-    Game1.Data memory game = startedGames[_gameId];
+    Data memory game = startedGames[_gameId];
     
     //player1 data
-    Game1.ActiveCard[] memory p1ActiveCards = new Game1.ActiveCard[](4);
-    Game1.PassiveCard[] memory p1PassiveCards = new Game1.PassiveCard[](4);
-    uint256[] memory p1Buffs = new uint256[](10);
-    uint256[] memory p1Regions = new uint256[](8); 
-    uint256 p1DeffFactor;
-    uint256 p1Damage;
-    uint256 p1DefanderCardIndex;
-    //yardimci degerler-total.
-    uint256 p1Ap;
-    uint256 p1Sp;
-    uint256 p1Deff;
-    uint256 p1Weight;
-
+    //region -> p1ActiveCards'da
+    //buffs -> p1PassiveCards'da 
+    //5. index sum of 1-4
+    uint256[] memory p1ActiveCards = new uint256[](5); 
+    p1ActiveCards[0] = playerContract.getCard((game.herdOfA2_Player1>>224) & 4294967295);
+    p1ActiveCards[1] = playerContract.getCard((game.herdOfA2_Player1>>192) & 4294967295);
+    p1ActiveCards[2] = playerContract.getCard((game.herdOfA2_Player1>>160) & 4294967295);
+    p1ActiveCards[3] = playerContract.getCard((game.herdOfA2_Player1>>128) & 4294967295);
+    p1ActiveCards[4] = p1ActiveCards[0] + p1ActiveCards[1] + p1ActiveCards[2] + p1ActiveCards[3];
+    uint256[] memory p1PassiveCards = new uint256[](5);
+    p1PassiveCards[0] = playerContract.getCard((game.herdOfA2_Player1>>96) & 4294967295);
+    p1PassiveCards[1] = playerContract.getCard((game.herdOfA2_Player1>>64) & 4294967295);
+    p1PassiveCards[2] = playerContract.getCard((game.herdOfA2_Player1>>32) & 4294967295);
+    p1PassiveCards[3] = playerContract.getCard((game.herdOfA2_Player1 & 4294967295));
+    p1PassiveCards[4] = p1PassiveCards[0] + p1PassiveCards[1] + p1PassiveCards[2] + p1PassiveCards[3];
+    
     //player2 data
-    Game1.ActiveCard[] memory p2ActiveCards = new Game1.ActiveCard[](4);
-    Game1.PassiveCard[] memory p2PassiveCards = new Game1.PassiveCard[](4);
-    uint256[] memory p2Buffs = new uint256[](10);
-    uint256[] memory p2Regions = new uint256[](8); 
-    uint256 p2DeffFactor;
-    uint256 p2Damage;
-    uint256 p2DefanderCardIndex;
-    //yardimci degerler-total.
-    uint256 p2Ap;
-    uint256 p2Sp;
-    uint256 p2Deff;
-    uint256 p2Weight;
+    //region -> p2ActiveCards'da
+    //buffs -> p2PassiveCards'da
+    //5. index sum of 1-4
+    uint256[] memory p2ActiveCards = new uint256[](5);
+    p2ActiveCards[0] = playerContract.getCard((game.herdOfA2_Player2>>224) & 4294967295);
+    p2ActiveCards[1] = playerContract.getCard((game.herdOfA2_Player2>>192) & 4294967295);
+    p2ActiveCards[2] = playerContract.getCard((game.herdOfA2_Player2>>160) & 4294967295);
+    p2ActiveCards[3] = playerContract.getCard((game.herdOfA2_Player2>>128) & 4294967295);
+    p2ActiveCards[4] = p2ActiveCards[0] + p2ActiveCards[1] + p2ActiveCards[2] + p2ActiveCards[3];
+    uint256[] memory p2PassiveCards = new uint256[](5);
+    p2PassiveCards[0] = playerContract.getCard((game.herdOfA2_Player2>>96) & 4294967295);
+    p2PassiveCards[1] = playerContract.getCard((game.herdOfA2_Player2>>64) & 4294967295);
+    p2PassiveCards[2] = playerContract.getCard((game.herdOfA2_Player2>>32) & 4294967295);
+    p2PassiveCards[3] = playerContract.getCard((game.herdOfA2_Player2 & 4294967295));
+    p2PassiveCards[4] = p2PassiveCards[0] + p2PassiveCards[1] + p2PassiveCards[2] + p2PassiveCards[3];
     
-    uint256 weigthFactor;
 
-    //kartlarin set edilmesi.      
-    //player1    
-    //aktiveCards.
-    uint256 _hp; 
-    uint256 _ap;
-    uint256 _deff;
-    uint256 _sp;
-    uint256 _weigth;
-    uint256 _life;
-    uint256 _region;
-    uint256 _lifespan;
-    uint256 _pasive;
-    uint256 _pasivePercent;
+    A2_PlayerState memory p1 = A2_PlayerState(
+      0, //uint256 deffFactor;
+      0, //uint256 damage;
+      0, //uint256 defanderCardIndex;
+      (p1ActiveCards[0] & 1329226728134315644674405563577139200) >>100, //defenderHp
+      (p1ActiveCards[4] & 1267649391302409786867528499200) >>80,   //uint256 ap;
+      (p1ActiveCards[4]  >>40 ) & 1048575,  //uint256 sp;
+      (p1ActiveCards[4] & 1208924666693124567859200) >>60,   //uint256 deff;
+      (p1ActiveCards[4] & 1099510579200) >>20   //uint256 weight;
+      );
     
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card1);
-    p1ActiveCards[0] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card2);
-    p1ActiveCards[1] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card3);
-    p1ActiveCards[2] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card4);
-    p1ActiveCards[3] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    //passiveCards.
-    //Bos olabilir. // _getPassiveCardTuple returns (0,0,0);
-    if(game.herdOfPlayer1.card5 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent) 
-        = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card5);
-      p1PassiveCards[0] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-    if(game.herdOfPlayer1.card6 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent)
-       = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card6);
-      p1PassiveCards[1] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-    if(game.herdOfPlayer1.card7 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent)
-       = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card7);
-      p1PassiveCards[2] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-    if(game.herdOfPlayer1.card8 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent)
-       = paniniCard.getCardBaseTupple(game.herdOfPlayer1.card8);
-      p1PassiveCards[3] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-
-    //bufflarin hesaplanmasi.
-    p2Buffs[p1PassiveCards[0].passive] += p1PassiveCards[0].percentage;
-    p2Buffs[p1PassiveCards[1].passive] += p1PassiveCards[1].percentage;
-    p2Buffs[p1PassiveCards[2].passive] += p1PassiveCards[2].percentage;
-    p2Buffs[p1PassiveCards[3].passive] += p1PassiveCards[3].percentage;
+    A2_PlayerState memory p2 = A2_PlayerState(
+      0, //uint256 deffFactor;
+      0, //uint256 damage;
+      0, //uint256 defanderCardIndex;
+      (p2ActiveCards[0] & 1329226728134315644674405563577139200) >>100, //defenderHp
+      (p2ActiveCards[4] & 1267649391302409786867528499200) >>80,   //uint256 ap;
+      (p2ActiveCards[4]  >>40 ) & 1048575,   //uint256 sp;
+      (p2ActiveCards[4] & 1208924666693124567859200) >>60,   //uint256 deff;
+      (p2ActiveCards[4] & 1099510579200) >>20   //uint256 weight;
+      );
     
-    //region bufflarin hesaplanmasi -> sonra.
-    p1Regions[p1ActiveCards[0].region] += 1;
-    p1Regions[p1ActiveCards[1].region] += 1;
-    p1Regions[p1ActiveCards[2].region] += 1;
-    p1Regions[p1ActiveCards[3].region] += 1;
+    //damage calc.
+    uint256 weigthFactor = _calculateWeightFactor(p1.weight, p2.weight );
+    p1.deffFactor = _calculateDeffFactor(p1.deff);
+    p2.deffFactor = _calculateDeffFactor(p2.deff);
+    p1.damage = _calculateDamage(p1.ap, p1.sp, weigthFactor, p2.deffFactor );
+    p2.damage = _calculateDamage(p2.ap, p2.sp, weigthFactor, p1.deffFactor );
 
-    //player2    
-    //aktiveCards.
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card1);
-    p2ActiveCards[0] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card2);
-    p2ActiveCards[1] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card3);
-    p2ActiveCards[2] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    (,,_hp, _ap, _deff, _sp, _weigth, _life, _region,,,) 
-      = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card4);
-    p2ActiveCards[3] = Game1.ActiveCard(_hp, _hp, _ap, _deff, _sp, _weigth, _life, _region);
-    //Bos olabilir. // _getPassiveCardTuple returns (0,0,0);
-    if(game.herdOfPlayer2.card5 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent) 
-        = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card5);
-      p2PassiveCards[0] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-    if(game.herdOfPlayer2.card6 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent)
-       = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card6);
-      p2PassiveCards[1] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-    if(game.herdOfPlayer2.card7 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent)
-       = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card7);
-      p2PassiveCards[2] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-    if(game.herdOfPlayer2.card8 != 0) {
-      (,, 
-      ,,,,, 
-      _lifespan,,, _pasive, _pasivePercent)
-       = paniniCard.getCardBaseTupple(game.herdOfPlayer2.card8);
-      p2PassiveCards[3] = Game1.PassiveCard(_lifespan, _pasive, _pasivePercent);
-    }
-
-    //bufflarin hesaplanmasi.
-    p2Buffs[p2PassiveCards[0].passive] += p2PassiveCards[0].percentage;
-    p2Buffs[p2PassiveCards[1].passive] += p2PassiveCards[1].percentage;
-    p2Buffs[p2PassiveCards[2].passive] += p2PassiveCards[2].percentage;
-    p2Buffs[p2PassiveCards[3].passive] += p2PassiveCards[3].percentage;
-    //region bufflarin hesaplanmasi -> sonra.
-    p2Regions[p2ActiveCards[0].region] += 1;
-    p2Regions[p2ActiveCards[1].region] += 1;
-    p2Regions[p2ActiveCards[2].region] += 1;
-    p2Regions[p2ActiveCards[3].region] += 1;
-
-    //calculation
-    //yardimci degerler
-    p1Ap = p1ActiveCards[0].ap +
-      p1ActiveCards[1].ap +
-      p1ActiveCards[2].ap +
-      p1ActiveCards[3].ap;
-    p1Sp = p1ActiveCards[0].sp +
-      p1ActiveCards[1].sp +
-      p1ActiveCards[2].sp +
-      p1ActiveCards[3].sp;
-    p1Weight = p1ActiveCards[0].weigth +
-      p1ActiveCards[1].weigth +
-      p1ActiveCards[2].weigth +
-      p1ActiveCards[3].weigth;
-    p1Deff = p1ActiveCards[0].deff +
-      p1ActiveCards[1].deff +
-      p1ActiveCards[2].deff +
-      p1ActiveCards[3].deff;
     
-    p2Ap = p2ActiveCards[0].ap +
-      p2ActiveCards[1].ap +
-      p2ActiveCards[2].ap +
-      p2ActiveCards[3].ap;
-    p2Sp = p2ActiveCards[0].sp +
-      p2ActiveCards[1].sp +
-      p2ActiveCards[2].sp +
-      p2ActiveCards[3].sp;
-    p2Weight = p2ActiveCards[0].weigth +
-      p2ActiveCards[1].weigth +
-      p2ActiveCards[2].weigth +
-      p2ActiveCards[3].weigth;
-    p2Deff = p2ActiveCards[0].deff +
-      p2ActiveCards[1].deff +
-      p2ActiveCards[2].deff +
-      p2ActiveCards[3].deff;
-
-    weigthFactor = _calculateWeightFactor( p1Weight, p2Weight);
-
-    p1DeffFactor = _calculateDeffFactor(p1Deff);
-    p2DeffFactor = _calculateDeffFactor(p2Deff);
-    p1Damage = _calculateDamage( p1Ap, p1Sp, weigthFactor, p2DeffFactor );
-    p2Damage = _calculateDamage( p2Ap, p2Sp, weigthFactor, p1DeffFactor );
-
     //iki saldiri'da ayni anda yapilacak.
     //60 => 60 sec.(1min) 
-    for(uint256 i = game.startTime; i < _time; i = i + 60) {
+    for(uint256 i = game.startTime; i < _time; i = i + 2) { //time lapse :2 sec, it will be change.
+      //test
+      hp1.push(p1.defenderHp);
+      hp2.push(p2.defenderHp);
       //saldiri.
-      if(p1ActiveCards[p1DefanderCardIndex].hp <= p2Damage) {
+      if(p1.defenderHp <= p2.damage) {
         //died.
-        p1ActiveCards[p1DefanderCardIndex].hp = 0;
+        p1ActiveCards[p1.defanderCardIndex] = 0;
+        p1.defenderHp = 0;
       } else {
-        p1ActiveCards[p1DefanderCardIndex].hp -= p2Damage;
+        p1.defenderHp -= p2.damage;
       }
 
-      if(p2ActiveCards[p2DefanderCardIndex].hp <= p1Damage) {
+      if(p2.defenderHp <= p1.damage) {
         //died.
-        p2ActiveCards[p2DefanderCardIndex].hp = 0;
+        p2ActiveCards[p1.defanderCardIndex] = 0;
+        p2.defenderHp = 0;
       } else {
-        p2ActiveCards[p2DefanderCardIndex].hp -= p1Damage;
+        p2.defenderHp -= p1.damage;
       }
 
       //####
@@ -1615,50 +1491,56 @@ contract A_PaniniGame1 is A_PaniniGameBase{
 
       //if aktifCard died. Recalculate.
       //iki oyuncunun kartlari da olduyse. (ayni islemleri tekrarlamamak icin.)
-      if(p1ActiveCards[p1DefanderCardIndex].hp == 0 || p2ActiveCards[p1DefanderCardIndex].hp == 0) {
+      if(p1.defenderHp == 0 || p2.defenderHp == 0) {
         
-        if(p1ActiveCards[p1DefanderCardIndex].hp == 0) {
+        if(p1.defenderHp == 0) {
+          p1ActiveCards[4] -= p1ActiveCards[p1.defanderCardIndex];          
+          p1.defanderCardIndex++;
 
-          p1Ap -= p1ActiveCards[p1DefanderCardIndex].ap;
-          p1Sp -= p1ActiveCards[p1DefanderCardIndex].sp;
-          p1Weight -= p1ActiveCards[p1DefanderCardIndex].weigth;
-          p1Deff -= p1ActiveCards[p1DefanderCardIndex].deff;
+          p1.defenderHp = ( p1ActiveCards[p1.defanderCardIndex] & 1329226728134315644674405563577139200) >>100; //defenderHp
+
+          p1.ap = (p1ActiveCards[4] & 1267649391302409786867528499200) >> 80;  //uint256 ap;
+          p1.sp = (p1ActiveCards[4]  >> 40 ) & 1048575;   //uint256 sp;
+          p1.deff = (p1ActiveCards[4] & 1208924666693124567859200) >> 60; //uint256 deff;
+          p1.weight = (p1ActiveCards[4] & 1099510579200) >> 20;   //uint256 weight;
           
-          p1DeffFactor = _calculateDeffFactor(p1Deff);
-        
-          p1DefanderCardIndex++;
+          p1.deffFactor = _calculateDeffFactor(p1.deff);
                   
         }
 
-        if(p2ActiveCards[p1DefanderCardIndex].hp == 0) {
+        if(p2.defenderHp == 0) {
 
-          p2Ap -= p2ActiveCards[p2DefanderCardIndex].ap;
-          p2Sp -= p2ActiveCards[p2DefanderCardIndex].sp;
-          p2Weight -= p2ActiveCards[p2DefanderCardIndex].weigth;
-          p2Deff -= p2ActiveCards[p2DefanderCardIndex].deff;
+          p2ActiveCards[4] -= p2ActiveCards[p2.defanderCardIndex];          
+          p2.defanderCardIndex++;
 
-          p2DeffFactor = _calculateDeffFactor(p2Deff);
-        
-          p2DefanderCardIndex++;
+          p2.defenderHp = ( p2ActiveCards[p2.defanderCardIndex] & 1329226728134315644674405563577139200) >>100; //defenderHp
+
+          p2.ap = (p2ActiveCards[4] & 1267649391302409786867528499200) >> 80;  //uint256 ap;
+          p2.sp = (p2ActiveCards[4]  >> 40 ) & 1048575;   //uint256 sp;
+          p2.deff = (p2ActiveCards[4] & 1208924666693124567859200) >> 60;   //uint256 deff;
+          p2.weight = (p2ActiveCards[4] & 1099510579200) >> 20;   //uint256 weight;
+          
+          p2.deffFactor = _calculateDeffFactor(p2.deff);
+                  
         }  
 
-        weigthFactor = _calculateWeightFactor( p1Weight, p2Weight);
-        p1Damage = _calculateDamage( p1Ap, p1Sp, weigthFactor, p2DeffFactor );
-        p2Damage = _calculateDamage( p2Ap, p2Sp, weigthFactor, p1DeffFactor );
+        weigthFactor = _calculateWeightFactor(p1.weight, p2.weight );
+        p1.damage = _calculateDamage(p1.ap, p1.sp, weigthFactor, p2.deffFactor );
+        p2.damage = _calculateDamage(p2.ap, p2.sp, weigthFactor, p1.deffFactor );
 
       }
       
       //kazanma kaybetme berabere durumlari
       //berabere
-      if(p1DefanderCardIndex == 3 && p2DefanderCardIndex == 3) {
+      if(p1.defanderCardIndex == 3 && p2.defanderCardIndex == 3) {
 
         return 3;
       //p1 winner
-      } else if(p2DefanderCardIndex == 3) {
+      } else if(p2.defanderCardIndex == 3) {
 
         return 1;
       //p2 winner
-      } else if(p1DefanderCardIndex == 3) {
+      } else if(p1.defanderCardIndex == 3) {
 
         return 2;
       }  
@@ -1700,93 +1582,6 @@ contract A_PaniniGame1 is A_PaniniGameBase{
     return "buraya girmemesi lazim";
   }
 
-  //oyun bulursa oyun baslatir
-  //bulamaz ise siraya girer
-  function startGameorEnterQueue(
-    uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4,
-    uint256 _card5, uint256 _card6, uint256 _card7, uint256 _card8
-  ) public {
-    //card'lari kontrol et.
-    //TODO: cardid = 0 ise kullanilmiyor. passivecard'lar icin.
-    require ( 
-      nft.ownerOf(_card1) == address(msg.sender) &&
-      nft.ownerOf(_card2) == address(msg.sender) &&
-      nft.ownerOf(_card3) == address(msg.sender) &&
-      nft.ownerOf(_card4) == address(msg.sender) &&
-      (_card5 == 0 || nft.ownerOf(_card5) == address(msg.sender)) &&
-      (_card6 == 0 || nft.ownerOf(_card6) == address(msg.sender)) &&
-      (_card7 == 0 || nft.ownerOf(_card7) == address(msg.sender)) &&
-      (_card8 == 0 || nft.ownerOf(_card8) == address(msg.sender))
-    );
-    
-    Game1.Herd memory herd = Game1.Herd(msg.sender,
-     _card1, _card2, _card3, _card4,
-     _card5, _card6, _card7, _card8);
-
-    _queueOrFindGame(herd);
-  }
-
-
-  function _queueOrFindGame(Game1.Herd _herd) internal {
-    //oyuncu ilk kez oynuyor ise.
-    //register yapmayi dusundum ama, her oyunda score olmayabilir.
-    //sonra player olayini degistirebilirim.
-    address player = _herd.owner;
-    if(playersIndex[player] == 0) {
-      playerScore[player] = NEW_PLAYER_SCORE;
-    }
-
-    int256 score = playerScore[player];
-    int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
-    bool gameFound;
-    //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
-    // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
-    if(pendingGames[index].length > 0) {
-      gameFound = true;
-    } else if(pendingGames[index + SCORE_GAP].length > 0) {
-      gameFound = true;
-      index = index + SCORE_GAP;
-    } else if(pendingGames[index - SCORE_GAP].length > 0) {
-      gameFound = true;
-      index = index - SCORE_GAP;
-    }
-
-    if(gameFound) {
-      //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
-      //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
-      uint256 lastIndex = pendingGames[index].length - 1;
-      Game1.Data game = pendingGames[index][lastIndex];
-
-      pendingGames[index].length = pendingGames[index].length -1;
-      delete pendingGames[index][lastIndex];
-
-      //hizli erisim icin.
-      game.id = numberOfGames;
-      numberOfGames +=1; //id.
-      game.player2 = player;
-      game.herdOfPlayer2 = _herd;
-      game.startTime = now;
-      startedGames[game.id] = game;
-
-      games.push(numberOfGames);
-      myGames[game.player1].push(numberOfGames);
-      myGames[game.player2].push(numberOfGames);
-
-    } else {
-      //note: struct olustururken null veremedigimiz icin hersey player1
-      //starttime = created time for pending players.
-      /*uint256 id;  //0 olabilir.
-    address player1;
-    address player2;
-    uint256 startTime;
-    Herd herdOfPlayer1;
-    Herd herdOfPlayer2;    */
-      Game1.Data memory newGame = Game1.Data(0, player, player, now, _herd, _herd);
-      pendingGames[index].push(newGame);
-    } 
-  }
-  
-
 }
 
 
@@ -1798,7 +1593,7 @@ contract A_PaniniGame1 is A_PaniniGameBase{
 
 
 
-
+ 
 
   //#########################################
   //###    PANINI OWNERS - CONTROLLER     ###
@@ -2170,7 +1965,7 @@ function claimShareholderOwnership() public {
 }
 
 
-contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
+contract AX_PaniniController is PaniniDevAccounts, UsingShareholder {
 
   A_PaniniState paniniState;
   A_PaniniCard paniniCard;
@@ -2236,11 +2031,11 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
       candidatePaniniMarket.isPaniniMarket() &&
       candidatePaniniBase.isPaniniBase());
 
-    candidatePaniniState.attachA_PaniniController();
-    candidatePaniniCard.attachA_PaniniController();
-    candidatePaniniCardPackage.attachA_PaniniController();
-    candidatePaniniMarket.attachA_PaniniController();
-    candidatePaniniBase.attachA_PaniniController();
+    candidatePaniniState.attachAX_PaniniController();
+    candidatePaniniCard.attachAX_PaniniController();
+    candidatePaniniCardPackage.attachAX_PaniniController();
+    candidatePaniniMarket.attachAX_PaniniController();
+    candidatePaniniBase.attachAX_PaniniController();
 
     candidatePaniniCard.setA_PaniniState(_paniniStateAddress);
     candidatePaniniCardPackage.setA_PaniniState(_paniniStateAddress);
@@ -2298,12 +2093,8 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
   }
   
   
-  function createCardBase(string _name, 
-    uint256 _hp, uint256 _ap, uint256 _deff, uint256 _speed, uint256 _weigth, 
-    uint256 _lifespan, uint256 _region, uint256 _rarity, uint256 _pasive, uint256 _pasivePercent ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
-    paniniCard.createCardBase( _name, 
-    _hp, _ap, _deff, _speed, _weigth, 
-    _lifespan, _region, _rarity, _pasive, _pasivePercent );
+  function createCardBase(uint256 _metedata ) __OnlyForThisRoles1(true, Role.RoleType.COO) public {
+    paniniCard.createCardBase( _metedata );
   }
   
 
@@ -2314,11 +2105,10 @@ contract A_PaniniController is PaniniDevAccounts, UsingShareholder {
 
 }
 
-
 /*
 test: 2 tane contract var. bu contractlar PaniniBaseTest'in state'ini degistirmeye calisiyor.
-//test sonucu: sadece A_PaniniControllerTest degistirebildi.
-//sebebi: paninistate -> attachA_PaniniController
+//test sonucu: sadece AX_PaniniControllerTest degistirebildi.
+//sebebi: paninistate -> attachAX_PaniniController
 //not: sadece paniniController.attach yapmak yeterli.
 */
 
@@ -2342,7 +2132,7 @@ contract PaniniBaseTest is PaniniBase {
 }
 
 
-contract PaniniControllerTest is A_PaniniController {
+contract PaniniControllerTest is AX_PaniniController {
 
   function PaniniControllerTest() public payable{
 
@@ -2350,6 +2140,6 @@ contract PaniniControllerTest is A_PaniniController {
 }
 
 
-contract PaniniControllerWithOtherContractTest is A_PaniniController {
+contract PaniniControllerWithOtherContractTest is AX_PaniniController {
 
 }
