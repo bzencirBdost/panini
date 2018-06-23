@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity 0.4.21;
 
 //import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
 //not: yukaridaki token ozelliklerini kod icerisinde sagliyoruz. Bu yuzden basic gas verimi icin tercih edildi.
@@ -1328,9 +1328,74 @@ contract A1_PaniniGame1 is PaniniGameBase{
 
 
   }
-  
+	  
+	function _sortedIndexs(uint256[] _arr)  internal view returns(uint256[]) {
+	  //_arr : a,b,c,d
+	  uint256[] memory indexs = new uint256[](5);//4->temp. + index when using.
+	  if((_arr[0] & 1048575) < (_arr[1] & 1048575)) {
+	      indexs[0] = 0;
+	      indexs[1] = 1;
+	  } else {
+	      indexs[0] = 1;
+	      indexs[1] = 0;
+	  }//[x,y] x<y (z = min(a,b), t = max(a,b) )
 
+	  if((_arr[2] & 1048575) < (_arr[3] & 1048575)) {
+	      indexs[2] = 2;
+	      indexs[3] = 3;
+	  } else {
+	      indexs[2] = 3;
+	      indexs[3] = 2;
+	  }//[z,t] z<t (z = min(c,d), t = max(c,d) )
 
+	  //son case.
+	  //not://y<z =< x,y,z,t //bisey yapmaya gerek yok.
+
+	  //t<x => z<t < x<y
+	  if((_arr[indexs[3]] & 1048575) < (_arr[indexs[0]] & 1048575)) {
+	      indexs[4] = indexs[0];//temp
+	      indexs[0] = indexs[2];
+	      indexs[2] = indexs[4];
+	      indexs[4] = indexs[1];//temp
+	      indexs[1] = indexs[3];
+	      indexs[3] = indexs[4];
+	  } 
+	  //z<x => z,x,y,t | z,x,t,y (her zaman z<y)
+	  else if((_arr[indexs[2]] & 1048575) < (_arr[indexs[0]] & 1048575)) {
+	    //t<y => z,x,t,y
+	    if((_arr[indexs[3]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
+	      indexs[4] = indexs[0];//temp
+	      indexs[0] = indexs[2];//z
+	      indexs[2] = indexs[4];//t
+	      indexs[3] = indexs[1];//y
+	      indexs[1] = indexs[4];//x
+	    } else {//z,x,y,t
+	      indexs[4] = indexs[0];//temp
+	      indexs[0] = indexs[2];//z
+	      indexs[2] = indexs[1];//y
+	      indexs[1] = indexs[4];//x
+	      //t already there.
+	    }
+	  } 
+	  //(herzaman x < (z,t))
+	  // t<y => x<z<t<y
+	  else if((_arr[indexs[3]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
+	    indexs[4] = indexs[1];//temp
+	    indexs[1] = indexs[2];
+	    indexs[2] = indexs[3];
+	    indexs[3] = indexs[4];
+	  } 
+	  //y<t => x<z<y<t | 
+	  else if((_arr[indexs[2]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
+	    indexs[4] = indexs[1];//temp
+	    indexs[1] = indexs[2];
+	    indexs[2] = indexs[4];
+	  }
+	  //else x<y<z<t
+	  indexs[4] = 0; //index of start.
+	  return indexs; 
+	}
+	   
   //returns 800 - 1200  : 1k = 1.
   function _calculateWeightFactor(uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256) {
     //kusurat icin *1000    
@@ -1373,18 +1438,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
   // 1 => player1 winner
   // 2 => player2 winner
   // 3 => draw
-  uint256[] hp1; 
-  uint256[] hp2; 
-
-  function gethp1() public view returns(uint256[]) {
-    return hp1;
-  }
-
-  function gethp2() public view returns(uint256[]) {
-    return hp2;
-  }
-  
-
   function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(uint256) {
     Data memory game = startedGames[_gameId];
     
@@ -1456,9 +1509,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
     //iki saldiri'da ayni anda yapilacak.
     //60 => 60 sec.(1min) 
     for(uint256 i = game.startTime; i < _time; i = i + 2) { //time lapse :2 sec, it will be change.
-      //test
-      hp1.push(p1.defenderHp);
-      hp2.push(p2.defenderHp);
       //saldiri.
       if(p1.defenderHp <= p2.damage) {
         //died.
