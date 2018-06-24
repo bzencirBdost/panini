@@ -1187,17 +1187,16 @@ contract A1_PaniniGame1 is PaniniGameBase{
   }
   
   struct A2_PlayerState {
-    uint256 deffFactor;
     uint256 damage;
-    uint256 defanderCardIndex;
     uint256 defenderHp;//daha az islem icin.
-    //yardimci degerler-total.
-    uint256 ap;
-    uint256 sp;
-    uint256 deff;
-    uint256 weight;
-  }    
+    uint256 defenderCardIndex;
+    uint256[] activeLifes;
+    uint256[] passiveLifes;
+    bool aktiveCardDeath;
+    bool passiveCardDeath;
+  }
 
+  
   int256 NEW_PLAYER_SCORE = 1200;
   int256 MIN_SCORE = 800;
   int256 MAX_SCORE = 2800;
@@ -1328,88 +1327,95 @@ contract A1_PaniniGame1 is PaniniGameBase{
 
 
   }
-	  
-	function _sortedIndexs(uint256[] _arr)  internal view returns(uint256[]) {
-	  //_arr : a,b,c,d
-	  uint256[] memory indexs = new uint256[](5);//4->temp. + index when using.
-	  if((_arr[0] & 1048575) < (_arr[1] & 1048575)) {
-	      indexs[0] = 0;
-	      indexs[1] = 1;
-	  } else {
-	      indexs[0] = 1;
-	      indexs[1] = 0;
-	  }//[x,y] x<y (z = min(a,b), t = max(a,b) )
+    
+  function _sortedIndexs(uint256[] _arr)  internal pure returns(uint256[]) {
+    //_arr : a,b,c,d
+    uint256[] memory indexs = new uint256[](5);//4->temp. + index when using.
+    if((_arr[0] & 1048575) < (_arr[1] & 1048575)) {
+        indexs[0] = 0;
+        indexs[1] = 1;
+    } else {
+        indexs[0] = 1;
+        indexs[1] = 0;
+    }//[x,y] x<y (z = min(a,b), t = max(a,b) )
 
-	  if((_arr[2] & 1048575) < (_arr[3] & 1048575)) {
-	      indexs[2] = 2;
-	      indexs[3] = 3;
-	  } else {
-	      indexs[2] = 3;
-	      indexs[3] = 2;
-	  }//[z,t] z<t (z = min(c,d), t = max(c,d) )
+    if((_arr[2] & 1048575) < (_arr[3] & 1048575)) {
+        indexs[2] = 2;
+        indexs[3] = 3;
+    } else {
+        indexs[2] = 3;
+        indexs[3] = 2;
+    }//[z,t] z<t (z = min(c,d), t = max(c,d) )
 
-	  //son case.
-	  //not://y<z =< x,y,z,t //bisey yapmaya gerek yok.
+    //son case.
+    //not://y<z =< x,y,z,t //bisey yapmaya gerek yok.
 
-	  //t<x => z<t < x<y
-	  if((_arr[indexs[3]] & 1048575) < (_arr[indexs[0]] & 1048575)) {
-	      indexs[4] = indexs[0];//temp
-	      indexs[0] = indexs[2];
-	      indexs[2] = indexs[4];
-	      indexs[4] = indexs[1];//temp
-	      indexs[1] = indexs[3];
-	      indexs[3] = indexs[4];
-	  } 
-	  //z<x => z,x,y,t | z,x,t,y (her zaman z<y)
-	  else if((_arr[indexs[2]] & 1048575) < (_arr[indexs[0]] & 1048575)) {
-	    //t<y => z,x,t,y
-	    if((_arr[indexs[3]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
-	      indexs[4] = indexs[0];//temp
-	      indexs[0] = indexs[2];//z
-	      indexs[2] = indexs[4];//t
-	      indexs[3] = indexs[1];//y
-	      indexs[1] = indexs[4];//x
-	    } else {//z,x,y,t
-	      indexs[4] = indexs[0];//temp
-	      indexs[0] = indexs[2];//z
-	      indexs[2] = indexs[1];//y
-	      indexs[1] = indexs[4];//x
-	      //t already there.
-	    }
-	  } 
-	  //(herzaman x < (z,t))
-	  // t<y => x<z<t<y
-	  else if((_arr[indexs[3]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
-	    indexs[4] = indexs[1];//temp
-	    indexs[1] = indexs[2];
-	    indexs[2] = indexs[3];
-	    indexs[3] = indexs[4];
-	  } 
-	  //y<t => x<z<y<t | 
-	  else if((_arr[indexs[2]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
-	    indexs[4] = indexs[1];//temp
-	    indexs[1] = indexs[2];
-	    indexs[2] = indexs[4];
-	  }
-	  //else x<y<z<t
-	  indexs[4] = 0; //index of start.
-	  return indexs; 
-	}
-	   
+    //t<x => z<t < x<y
+    if((_arr[indexs[3]] & 1048575) < (_arr[indexs[0]] & 1048575)) {
+        indexs[4] = indexs[0];//temp
+        indexs[0] = indexs[2];
+        indexs[2] = indexs[4];
+        indexs[4] = indexs[1];//temp
+        indexs[1] = indexs[3];
+        indexs[3] = indexs[4];
+    } 
+    //z<x => z,x,y,t | z,x,t,y (her zaman z<y)
+    else if((_arr[indexs[2]] & 1048575) < (_arr[indexs[0]] & 1048575)) {
+      //t<y => z,x,t,y
+      if((_arr[indexs[3]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
+        indexs[4] = indexs[0];//temp
+        indexs[0] = indexs[2];//z
+        indexs[2] = indexs[4];//t
+        indexs[3] = indexs[1];//y
+        indexs[1] = indexs[4];//x
+      } else {//z,x,y,t
+        indexs[4] = indexs[0];//temp
+        indexs[0] = indexs[2];//z
+        indexs[2] = indexs[1];//y
+        indexs[1] = indexs[4];//x
+        //t already there.
+      }
+    } 
+    //(herzaman x < (z,t))
+    // t<y => x<z<t<y
+    else if((_arr[indexs[3]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
+      indexs[4] = indexs[1];//temp
+      indexs[1] = indexs[2];
+      indexs[2] = indexs[3];
+      indexs[3] = indexs[4];
+    } 
+    //y<t => x<z<y<t | 
+    else if((_arr[indexs[2]] & 1048575) < (_arr[indexs[1]] & 1048575)) {
+      indexs[4] = indexs[1];//temp
+      indexs[1] = indexs[2];
+      indexs[2] = indexs[4];
+    }
+    //else x<y<z<t
+    indexs[4] = 0; //index of start.
+    return indexs; 
+  }
+     
   //returns 800 - 1200  : 1k = 1.
-  function _calculateWeightFactor(uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256) {
+  //weightRate : w1/w2 ->p1, w2/w1 ->p2
+  function _calcWeightFactor(uint256 _weightRate ) internal pure returns(uint256) {
     //kusurat icin *1000    
-    uint256 w = (_weight1*100) / _weight2; 
-    if(w <= 50) {
-      return 2*w + 800;
-    } else if(w <= 300) {
-      return w + 900;
+    if(_weightRate <= 50) {
+      return 2*_weightRate + 800;
+    } else if(_weightRate <= 300) {
+      return _weightRate + 900;
     }
     return 1200; 
   }
+  
+  function _calcWeightFactors( uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256,uint256){
+     return ( 
+      _calcWeightFactor(_weight1 / (_weight2 + 1) ), 
+      _calcWeightFactor(_weight2 / (_weight1 + 1))
+    );
+  }
 
   // 0-1000(for %0-100). no limit.
-  function _calculateDeffFactor(uint256 _deff ) internal pure returns(uint256) {
+  function _calcDeffFactor(uint256 _deff ) internal pure returns(uint256) {
     //kusurat icin *1000    
     if(_deff <= 250) {
       return _deff*10;
@@ -1430,17 +1436,90 @@ contract A1_PaniniGame1 is PaniniGameBase{
   //(1.5*10^3*df) ~1.5*10^6
   //return: ~ (10^8) / (1.5*10^6) : ~100/1.5 = 66(1k deff icin.), 130(500 deff icin.) 
   //orn: bir fil(TANK)'in cani 1000 ise => ~10 tur'da gidici.  
-  function _calculateDamage(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal pure returns(uint256) {
+  function _calcDamageFactor(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal pure returns(uint256) {
     return (_ap*_sp*_wf) / (15000*_df);//x10 df
   }
+
   
+  function _calcApSpWithBuffs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256,uint256){
+    return (
+      ((_aktiveCard & 1267649391302409786867528499200) >>80) 
+      + (
+        ((_aktiveCard & 1267649391302409786867528499200) >> 80 ) 
+      * (((_passiveCard & 95406826884961342500336545879718955523139276405473280) >> 168 ) - ((_enemyPassiveCard >> 176 ) & 65535 )) 
+      )/1000,
+      ((_aktiveCard  >>40 ) & 1048575)
+      + (
+        ((_aktiveCard & 1208924666693124567859200) >> 60 ) 
+      * (((_passiveCard & 1455792646560079078679451688838485039110401556480) >>152 ) - ((_enemyPassiveCard >> 160 ) & 65535 )) 
+      )/1000
+    );
+  }
+  
+  function _calcDeffFactorWithBuffs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256){
+    //p1 deffFactor
+    return _calcDeffFactor(((_aktiveCard & 1208924666693124567859200) >>60)
+      + (
+        ((_aktiveCard >> 40 ) & 1048575 ) 
+      * (((_passiveCard & 22213632912598862894889094373145828843847680) >> 136 ) - ((_enemyPassiveCard >> 144 ) & 65535 )) 
+      )/1000);
+  }
+
+
+  //calcs: damages, lifesteal,damagareflect, heal, poison. -> to just a single damage.
+  function _calculateDamages(uint256[] _calcData,
+    uint256 _p1DefenderHp, uint256 _p1Defender, uint256 _p1ActiveCard, uint256 _p1PassiveCard,
+    uint256 _p2DefenderHp, uint256 _p2Defender, uint256 _p2ActiveCard, uint256 _p2PassiveCard ) internal pure returns(uint256,uint256){
+
+    //p1,p2 weight factors   
+    (_calcData[3], _calcData[4]) = _calcWeightFactors( (_p1ActiveCard & 1099510579200) >>20, (_p2ActiveCard & 1099510579200) >>20 );
+
+    //## p1:damage factor(calcData5)
+    //ap, sp -> p1
+    (_calcData[0], _calcData[1]) = _calcApSpWithBuffs( _p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
+    //deffFactor -> p2
+    _calcData[3] = _calcDeffFactorWithBuffs(_p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
+    _calcData[5] = _calcDamageFactor(_calcData[0], _calcData[1], _calcData[3], _calcData[2] );
+
+    //## p2:damage factor(calcData6)
+    //ap, sp -> p2
+    (_calcData[0], _calcData[1]) = _calcApSpWithBuffs( _p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
+    //deffFactor -> p1
+    _calcData[3] = _calcDeffFactorWithBuffs(_p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
+    _calcData[6] = _calcDamageFactor(_calcData[0], _calcData[1], _calcData[4], _calcData[2] );
+    //passive1,2,9,10 /p1,p2
+
+    return (
+      //p1 heal+poison: p1damage += p2Hp*(p1.poison - p2.heal)(rakibin hp'si uzerinden kendi poisonunu ekle, rakibin heal'ini cikar. )
+      //p1 lifeSteal: p1damage -= (p2.damage*p2ActiveCards[0].passive9)/1000;(rakibin lifesteal'ini kendi damagesinden cikart.)
+      //p1 damage reflection: p1damage += (p2.damage*p1ActiveCards[0].passive10)/1000; (rakibin damagesini kendi passif dam.reflectionu ile kendi damagesine ekle.)
+      _calcData[5] + 
+      (  _p2DefenderHp *(((_p1PassiveCard >>184 ) & 65535 ) - ( (_p2PassiveCard >>176 ) & 65535 ))
+       - (_calcData[6] * ((_p2Defender & 86772003564839308183160524895100893921280) >> 128 ))
+       + (_calcData[6] * ((_p1Defender >>120 ) & 65535 ))
+      )/1000,
+
+      //p2 heal+poison: p2damage += p1Hp*(p2.poison - p1.heal)(rakibin hp'si uzerinden kendi poisonunu ekle, rakibin heal'ini cikar. )
+      //p2 lifeSteal: p2damage -= (p1.damage*p1ActiveCards[0].passive9)/1000;(rakibin lifesteal'ini kendi damagesinden cikart.)
+      //p2 damage reflection: p2damage += (p1.damage*p2ActiveCards[0].passive10)/1000; (rakibin damagesini kendi passif dam.reflectionu ile kendi damagesine ekle.)
+      _calcData[6] + 
+      (  _p1DefenderHp *(((_p2PassiveCard >>184 ) & 65535 ) - ( (_p1PassiveCard >>176 ) & 65535 ))
+       - (_calcData[5] * ((_p1Defender & 86772003564839308183160524895100893921280) >> 128 ))
+       + (_calcData[5] * ((_p2Defender >>120 ) & 65535 ))
+      )/1000
+    );
+  }
+
   // 0 => not end.
   // 1 => player1 winner
   // 2 => player2 winner
   // 3 => draw
   function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(uint256) {
     Data memory game = startedGames[_gameId];
-    
+    //a0,s1,df2,wf3,wf4,df5,df6
+    //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
+    //damageFactor1, damageFactor2 
+    uint256[] memory calcData = new uint256[](7);
     //player1 data
     //region -> p1ActiveCards'da
     //buffs -> p1PassiveCards'da 
@@ -1468,132 +1547,234 @@ contract A1_PaniniGame1 is PaniniGameBase{
     p2ActiveCards[2] = playerContract.getCard((game.herdOfA2_Player2>>160) & 4294967295);
     p2ActiveCards[3] = playerContract.getCard((game.herdOfA2_Player2>>128) & 4294967295);
     p2ActiveCards[4] = p2ActiveCards[0] + p2ActiveCards[1] + p2ActiveCards[2] + p2ActiveCards[3];
+ 
     uint256[] memory p2PassiveCards = new uint256[](5);
     p2PassiveCards[0] = playerContract.getCard((game.herdOfA2_Player2>>96) & 4294967295);
     p2PassiveCards[1] = playerContract.getCard((game.herdOfA2_Player2>>64) & 4294967295);
     p2PassiveCards[2] = playerContract.getCard((game.herdOfA2_Player2>>32) & 4294967295);
     p2PassiveCards[3] = playerContract.getCard((game.herdOfA2_Player2 & 4294967295));
-    p2PassiveCards[4] = p2PassiveCards[0] + p2PassiveCards[1] + p2PassiveCards[2] + p2PassiveCards[3];
+    p2PassiveCards[4] = p2PassiveCards[0] + p2PassiveCards[1] + p2PassiveCards[2] + p2PassiveCards[3];   
+
     
+/*  struct A2_PlayerState {
+    uint256 damage;
+    uint256 defenderHp;//daha az islem icin.
+    uint256 defenderCardIndex;
+    bool aktiveCardDeath;
+    bool passiveCardDeath;
+  }    */
 
     A2_PlayerState memory p1 = A2_PlayerState(
-      0, //uint256 deffFactor;
       0, //uint256 damage;
-      0, //uint256 defanderCardIndex;
-      (p1ActiveCards[0] & 1329226728134315644674405563577139200) >>100, //defenderHp
-      (p1ActiveCards[4] & 1267649391302409786867528499200) >>80,   //uint256 ap;
-      (p1ActiveCards[4]  >>40 ) & 1048575,  //uint256 sp;
-      (p1ActiveCards[4] & 1208924666693124567859200) >>60,   //uint256 deff;
-      (p1ActiveCards[4] & 1099510579200) >>20   //uint256 weight;
-      );
+      (p1ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
+      0, //uint256 defenderCardIndex;
+      _sortedIndexs(p1ActiveCards),
+      _sortedIndexs(p1PassiveCards),
+      false,//aktiveCardDeath
+      false //passiveCardDeath
+    );
     
     A2_PlayerState memory p2 = A2_PlayerState(
-      0, //uint256 deffFactor;
       0, //uint256 damage;
-      0, //uint256 defanderCardIndex;
-      (p2ActiveCards[0] & 1329226728134315644674405563577139200) >>100, //defenderHp
-      (p2ActiveCards[4] & 1267649391302409786867528499200) >>80,   //uint256 ap;
-      (p2ActiveCards[4]  >>40 ) & 1048575,   //uint256 sp;
-      (p2ActiveCards[4] & 1208924666693124567859200) >>60,   //uint256 deff;
-      (p2ActiveCards[4] & 1099510579200) >>20   //uint256 weight;
-      );
-    
-    //damage calc.
-    uint256 weigthFactor = _calculateWeightFactor(p1.weight, p2.weight );
-    p1.deffFactor = _calculateDeffFactor(p1.deff);
-    p2.deffFactor = _calculateDeffFactor(p2.deff);
-    p1.damage = _calculateDamage(p1.ap, p1.sp, weigthFactor, p2.deffFactor );
-    p2.damage = _calculateDamage(p2.ap, p2.sp, weigthFactor, p1.deffFactor );
+      (p2ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
+      0, //uint256 defenderCardIndex;      
+      _sortedIndexs(p2ActiveCards),
+      _sortedIndexs(p2PassiveCards),
+      false,//aktiveCardDeath
+      false //passiveCardDeath
+    );
 
-    
+    (p1.damage, p2.damage) = _calculateDamages(calcData,
+      p1.defenderHp, p1ActiveCards[0], p1ActiveCards[4], p1PassiveCards[4],
+      p2.defenderHp, p2ActiveCards[0], p2ActiveCards[4], p2PassiveCards[4] );
+
     //iki saldiri'da ayni anda yapilacak.
     //60 => 60 sec.(1min) 
-    for(uint256 i = game.startTime; i < _time; i = i + 2) { //time lapse :2 sec, it will be change.
-      //saldiri.
-      if(p1.defenderHp <= p2.damage) {
-        //died.
-        p1ActiveCards[p1.defanderCardIndex] = 0;
-        p1.defenderHp = 0;
-      } else {
-        p1.defenderHp -= p2.damage;
+ //   for(uint256 i = game.startTime; i < _time; i = i + 60) { //time lapse :2 sec, it will be change.
+    for(uint256 i = 0; i < 100; i++) { //time lapse :2 sec, it will be change.
+
+      //p1 aktive life span deaths.
+      if((p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]]  & 1048575)<= i) {
+        //olen defender mi?
+        //bu turun sonunda oluyor aslinda(damagesini yapiyor.).
+        if(p1.activeLifes[p1.activeLifes[4]] == p1.defenderCardIndex) {
+          p1.defenderHp = 0;
+        } else {
+          p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]] = p1ActiveCards[4] - p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]];  
+          p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]] = 0;
+        }
+        p1.activeLifes[4] += 1;
+        //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
+        if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+          p1.activeLifes[4] += 1;
+          if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+            p1.activeLifes[4] += 1;
+          }
+        }
+        p1.aktiveCardDeath = true;
       }
 
+      //p2 aktive life span deaths.
+      if(( p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]]  & 1048575 ) <= i) {
+        //olen defender mi?
+        //bu turun sonunda oluyor aslinda(damagesini yapiyor.).
+        if(p2.activeLifes[p2.activeLifes[4]] == p2.defenderCardIndex) {
+          p2.defenderHp = 0;
+        } else {
+          p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]] = p2ActiveCards[4] - p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]];  
+          p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]] = 0;
+        }
+        p1.activeLifes[4] += 1;
+        //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
+        if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
+          p2.activeLifes[4] += 1;
+          if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
+            p2.activeLifes[4] += 1;
+          }
+        }
+        p2.aktiveCardDeath = true;
+      }
+
+      //p1 pasive life span deaths.
+      if( p1.passiveLifes[4] < 4 && ( p1PassiveCards[p1.passiveLifes[p1.passiveLifes[4]]] & 1048575) <= i ) {
+        p1.passiveLifes[4] += 1;
+        p1PassiveCards[4] = p1PassiveCards[4] - p1PassiveCards[p1.passiveLifes[p1.passiveLifes[4]]];          
+        p1.passiveCardDeath = true;
+      }
+      //p2 pasive life span deaths.
+      if( p2.passiveLifes[4] < 4 && ( p2PassiveCards[p2.passiveLifes[p2.passiveLifes[4]]] & 1048575) <= i ) {
+        p2.passiveLifes[4] += 1;
+        p2PassiveCards[4] = p2PassiveCards[4] - p2PassiveCards[p2.passiveLifes[p2.passiveLifes[4]]];          
+        p2.passiveCardDeath = true;
+      }
+
+      //p1 saldiri.
       if(p2.defenderHp <= p1.damage) {
         //died.
-        p2ActiveCards[p1.defanderCardIndex] = 0;
-        p2.defenderHp = 0;
-      } else {
-        p2.defenderHp -= p1.damage;
-      }
-
-      //####
-      //buff damage.
-      //####
-
-      //####
-      //life span hesaplama.
-      //####
-
-      //####
-      //heal/poison hesaplamasi.
-      //####
-
-
-      //if aktifCard died. Recalculate.
-      //iki oyuncunun kartlari da olduyse. (ayni islemleri tekrarlamamak icin.)
-      if(p1.defenderHp == 0 || p2.defenderHp == 0) {
-        
-        if(p1.defenderHp == 0) {
-          p1ActiveCards[4] -= p1ActiveCards[p1.defanderCardIndex];          
-          p1.defanderCardIndex++;
-
-          p1.defenderHp = ( p1ActiveCards[p1.defanderCardIndex] & 1329226728134315644674405563577139200) >>100; //defenderHp
-
-          p1.ap = (p1ActiveCards[4] & 1267649391302409786867528499200) >> 80;  //uint256 ap;
-          p1.sp = (p1ActiveCards[4]  >> 40 ) & 1048575;   //uint256 sp;
-          p1.deff = (p1ActiveCards[4] & 1208924666693124567859200) >> 60; //uint256 deff;
-          p1.weight = (p1ActiveCards[4] & 1099510579200) >> 20;   //uint256 weight;
-          
-          p1.deffFactor = _calculateDeffFactor(p1.deff);
-                  
+        p2ActiveCards[4] = p2ActiveCards[4] - p2ActiveCards[p2.defenderCardIndex];          
+        p2ActiveCards[p2.defenderCardIndex] = 0;
+        //yasam suresi bitmemis ise arttir. //eger yasam suresi bitmisse zaten arttiramayacak.
+        if(p2.activeLifes[p2.activeLifes[4]] == p2.defenderCardIndex) {
+          p2.activeLifes[4] += 1;
+          //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
+          if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
+            p2.activeLifes[4] += 1;
+            if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
+              p2.activeLifes[4] += 1;
+            }
+          }
         }
 
+        p2.defenderHp = 0;
+        p2.aktiveCardDeath = true;
+
+      } else {
+        p2.defenderHp -= p1.damage;
+        //eger heal + lifesteal yuzunden damage negatif ise. max hp'yi gecme
+        if(p1.damage < 0 && p2.defenderHp > ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
+          p2.defenderHp = ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
+        }
+      }
+
+      //p2 saldiri.
+      if(p1.defenderHp <= p2.damage) {
+        //died.
+        p1ActiveCards[4] = p1ActiveCards[4] - p1ActiveCards[p1.defenderCardIndex];          
+        p1ActiveCards[p1.defenderCardIndex] = 0;
+        //yasam suresi bitmemis ise arttir. //eger yasam suresi bitmisse zaten arttiramayacak.
+        if(p1.activeLifes[p1.activeLifes[4]] == p1.defenderCardIndex) {
+          p1.activeLifes[4] += 1;
+          //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
+          if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+            p1.activeLifes[4] += 1;
+            if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+              p1.activeLifes[4] += 1;
+            }
+          }
+        }
+
+        p1.defenderHp = 0;
+        p1.aktiveCardDeath = true;
+
+      } else {
+        p1.defenderHp -= p2.damage;
+        //eger heal + lifesteal yuzunden damage negatif ise. max hp'yi gecme
+        if(p2.damage < 0 && p1.defenderHp >  ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
+          p1.defenderHp = ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
+        }
+      }
+
+      //p1 index ve hp duzenlenmesi
+      if(p1.aktiveCardDeath ) {
+        
+        //defender olduyse yeni defendar belirle.
+        if(p1.defenderHp == 0) {
+
+          p1.defenderCardIndex++;
+          //life span ile olenleri gec.
+          if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+            p1.defenderCardIndex++;
+            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+              p1.defenderCardIndex++;
+            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+                p1.defenderCardIndex++;
+              }     
+            }   
+          }
+          p1.defenderHp = ( p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;
+        }
+      }
+
+      //p2 index ve hp duzenlenmesi
+      if(p2.aktiveCardDeath ) {
+        
+        //defender olduyse yeni defendar belirle.
         if(p2.defenderHp == 0) {
 
-          p2ActiveCards[4] -= p2ActiveCards[p2.defanderCardIndex];          
-          p2.defanderCardIndex++;
-
-          p2.defenderHp = ( p2ActiveCards[p2.defanderCardIndex] & 1329226728134315644674405563577139200) >>100; //defenderHp
-
-          p2.ap = (p2ActiveCards[4] & 1267649391302409786867528499200) >> 80;  //uint256 ap;
-          p2.sp = (p2ActiveCards[4]  >> 40 ) & 1048575;   //uint256 sp;
-          p2.deff = (p2ActiveCards[4] & 1208924666693124567859200) >> 60;   //uint256 deff;
-          p2.weight = (p2ActiveCards[4] & 1099510579200) >> 20;   //uint256 weight;
-          
-          p2.deffFactor = _calculateDeffFactor(p2.deff);
-                  
-        }  
-
-        weigthFactor = _calculateWeightFactor(p1.weight, p2.weight );
-        p1.damage = _calculateDamage(p1.ap, p1.sp, weigthFactor, p2.deffFactor );
-        p2.damage = _calculateDamage(p2.ap, p2.sp, weigthFactor, p1.deffFactor );
-
+          p2.defenderCardIndex++;
+          //life span ile olenleri gec.
+          if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+            p2.defenderCardIndex++;
+            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+              p2.defenderCardIndex++;
+            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+                p2.defenderCardIndex++;
+              }     
+            }   
+          }
+          p2.defenderHp = ( p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;
+        }
       }
+
+
+      if(p1.defenderCardIndex < 4 && p2.defenderCardIndex < 4) {
+
+        //bir kart olduyse.
+        //DAMAGE HESAPLA
+        if( p1.aktiveCardDeath || p2.aktiveCardDeath || p1.passiveCardDeath || p2.passiveCardDeath ) {
+
+          (p1.damage, p2.damage) = _calculateDamages(calcData,
+            p1.defenderHp, p1ActiveCards[p1.defenderCardIndex], p1ActiveCards[4], p1PassiveCards[4],
+            p2.defenderHp, p2ActiveCards[p2.defenderCardIndex], p2ActiveCards[4], p2PassiveCards[4] );
+
+          p1.aktiveCardDeath = false;
+          p1.passiveCardDeath = false;
+
+          p2.aktiveCardDeath = false;
+          p2.passiveCardDeath = false;
+        }
       
+      } 
       //kazanma kaybetme berabere durumlari
       //berabere
-      if(p1.defanderCardIndex == 3 && p2.defanderCardIndex == 3) {
-
-        return 3;
-      //p1 winner
-      } else if(p2.defanderCardIndex == 3) {
-
+      else if(p2.defenderCardIndex == 4) {
         return 1;
       //p2 winner
-      } else if(p1.defanderCardIndex == 3) {
-
+      } else if(p1.defenderCardIndex == 4) {
         return 2;
-      }  
+      } else {  
+        return 3;
+      }
 
     }
 
@@ -1601,7 +1782,7 @@ contract A1_PaniniGame1 is PaniniGameBase{
   }
   
   //function _calculateGameState(uint256 _gameId, uint256 _time)
-  function checkEndFinishGame(uint256 _gameId) public view returns(string){
+  function checkEndFinishGame(uint256 _gameId) public returns(string){
     //TODO: Check gameId
     //todo: bu metod cagrilinca oyunu finishedgame'e koy.
     //cagirmada kontrol et. eger fnishedgames'de ise hesaplama yapma.
