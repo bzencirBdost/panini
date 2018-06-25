@@ -1157,35 +1157,10 @@ contract PaniniGameBase is HasA_PaniniState, ERC721Receiver{
 
 }
 
-//GAME-1
-//oyun'un hazir hale getirilmesi.
-//1. controller'a ekle. (Controller tarafinda.)
-//2. state'i ekle. (setState metodunu kulanarak.)
-contract A1_PaniniGame1 is PaniniGameBase{
-  //32 bit -> bitwise
-  /*struct Herd {
-    address owner;
-    //active cards
-    uint256 card1;
-    uint256 card2;
-    uint256 card3;
-    uint256 card4;
-    //passive cards
-    uint256 card5;
-    uint256 card6;
-    uint256 card7;
-    uint256 card8;
-  }*/
 
-  struct Data {
-    uint256 id;  //0 olabilir.
-    address player1;
-    address player2;
-    uint256 startTime;
-    uint256 herdOfA2_Player1;
-    uint256 herdOfA2_Player2;    
-  }
-  
+contract A1_PaniniGame1Helper {
+    
+
   struct A2_PlayerState {
     uint256 damage;
     uint256 defenderHp;//daha az islem icin.
@@ -1196,138 +1171,7 @@ contract A1_PaniniGame1 is PaniniGameBase{
     bool passiveCardDeath;
   }
 
-  
-  int256 NEW_PLAYER_SCORE = 1200;
-  int256 MIN_SCORE = 800;
-  int256 MAX_SCORE = 2800;
-  int256 SCORE_GAP = 50;
 
-  address[] players;
-  mapping (address => uint256) playersIndex;
-  mapping (address => int256) playerScore;
-  
-  //binary tree balance olmayacagi icin(balance yapmak oyuncuya masraf.), search log(n)'de calisacak sekilde ziplayacak.
-  //tree yerine atliyarak gitse? Ortadan baslasa search'e? bole bole gitse?
-  //Data[] pendingGames; 
-
-  //hash map of arrays in score window
-  //800-> 800-850 , 850-900, 900-950
-  //1123 ->1100
-  mapping (int256 => Data[]) pendingGames;
-  
-  uint256 numberOfGames;
-
-  mapping (uint256 => Data) startedGames;
-  //mapping (uint256 => Data) finishedGames;
-
-  //butun oyuncularin oyunlarinin listesi? 
-  uint256[] games;
-  //Bir oyuncuya ait oynlarin listesi 
-  mapping (address => uint256[]) myGames;    
-
-  function A1_PaniniGame1() public {
-  }
-
-  function getMyGames() public view returns(uint256[]) {
-    return myGames[msg.sender];
-  }
-  
-
-  //oyun bulursa oyun baslatir
-  //bulamaz ise siraya girer
-  function startGameorEnterQueue(
-    uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4,
-    uint256 _card5, uint256 _card6, uint256 _card7, uint256 _card8
-  ) public {
-    //card'lari kontrol et.
-    //TODO: cardid = 0 ise kullanilmiyor. passivecard'lar icin.
-    require ( 
-      nft.ownerOf(_card1) == address(msg.sender) &&
-      nft.ownerOf(_card2) == address(msg.sender) &&
-      nft.ownerOf(_card3) == address(msg.sender) &&
-      nft.ownerOf(_card4) == address(msg.sender) &&
-      (_card5 == 0 || nft.ownerOf(_card5) == address(msg.sender)) &&
-      (_card6 == 0 || nft.ownerOf(_card6) == address(msg.sender)) &&
-      (_card7 == 0 || nft.ownerOf(_card7) == address(msg.sender)) &&
-      (_card8 == 0 || nft.ownerOf(_card8) == address(msg.sender))
-    );
-    
-    
-    //combine cardId's and enter queue
-    _queueOrFindGame( msg.sender,
-      (_card1 
-      | (_card2 << 32)
-      | (_card3 << 64)
-      | (_card4 << 96)),
-      (_card5 
-      | (_card6 << 32)
-      | (_card7 << 64)
-      | (_card8 << 96))
-    );
-  }
-
-  function _queueOrFindGame(address _address, uint256 _herdActive, uint256 _herdPassive) internal {
-    //oyuncu ilk kez oynuyor ise.
-    //register yapmayi dusundum ama, her oyunda score olmayabilir.
-    //sonra player olayini degistirebilirim.
-    if(playersIndex[_address] == 0) {
-      playerScore[_address] = NEW_PLAYER_SCORE;
-    }
-
-    int256 score = playerScore[_address];
-    int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
-    bool gameFound;
-    //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
-    // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
-    if(pendingGames[index].length > 0) {
-      gameFound = true;
-    } else if(pendingGames[index + SCORE_GAP].length > 0) {
-      gameFound = true;
-      index = index + SCORE_GAP;
-    } else if(pendingGames[index - SCORE_GAP].length > 0) {
-      gameFound = true;
-      index = index - SCORE_GAP;
-    }
-
-    if(gameFound) {
-      //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
-      //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
-      uint256 lastIndex = pendingGames[index].length - 1;
-      Data memory game = pendingGames[index][lastIndex];
-
-      delete pendingGames[index][lastIndex];
-      pendingGames[index].length = pendingGames[index].length -1;
-
-      //hizli erisim icin.
-      numberOfGames +=1; //id.
-      game.id = numberOfGames;
-      game.player2 = _address;
-      game.herdOfA2_Player2 = _herdActive << 128 | _herdPassive;
-      game.startTime = now;
-      startedGames[game.id] = game;
-
-      games.push(numberOfGames);
-      myGames[game.player1].push(numberOfGames);
-      myGames[game.player2].push(numberOfGames);
-
-    } else {
-      //note: struct olustururken null veremedigimiz icin hersey player1
-      //starttime = created time for pending players.
-      /*uint256 id;  //0 olabilir.
-    address player1;
-    address player2;
-    uint256 startTime;
-    Herd herdOfA2_Player1;
-    Herd herdOfA2_Player2;    */
-      Data memory newGame = Data(0, _address, _address, now, _herdActive << 128 | _herdPassive, 0);
-      //buraya kadar 100k
-      //bu satir 400k gaz...
-      pendingGames[index].push(newGame);
-    } 
-
-
-  }
-    
   function _sortedIndexs(uint256[] _arr)  internal pure returns(uint256[]) {
     //_arr : a,b,c,d
     uint256[] memory indexs = new uint256[](5);//4->temp. + index when using.
@@ -1514,56 +1358,12 @@ contract A1_PaniniGame1 is PaniniGameBase{
   // 1 => player1 winner
   // 2 => player2 winner
   // 3 => draw
-  function _calculateGameState(uint256 _gameId, uint256 _time) internal returns(uint256) {
-    Data memory game = startedGames[_gameId];
+  function _calculateGameState(uint256[] p1ActiveCards, uint256[] p1PassiveCards, uint256[] p2ActiveCards, uint256[] p2PassiveCards, uint256 _time) public returns(uint256) {
     //a0,s1,df2,wf3,wf4,df5,df6
     //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
     //damageFactor1, damageFactor2 
     uint256[] memory calcData = new uint256[](7);
-    //player1 data
-    //region -> p1ActiveCards'da
-    //buffs -> p1PassiveCards'da 
-    //5. index sum of 1-4
-    uint256[] memory p1ActiveCards = new uint256[](5); 
-    p1ActiveCards[0] = playerContract.getCard((game.herdOfA2_Player1>>224) & 4294967295);
-    p1ActiveCards[1] = playerContract.getCard((game.herdOfA2_Player1>>192) & 4294967295);
-    p1ActiveCards[2] = playerContract.getCard((game.herdOfA2_Player1>>160) & 4294967295);
-    p1ActiveCards[3] = playerContract.getCard((game.herdOfA2_Player1>>128) & 4294967295);
-    p1ActiveCards[4] = p1ActiveCards[0] + p1ActiveCards[1] + p1ActiveCards[2] + p1ActiveCards[3];
-    uint256[] memory p1PassiveCards = new uint256[](5);
-    p1PassiveCards[0] = playerContract.getCard((game.herdOfA2_Player1>>96) & 4294967295);
-    p1PassiveCards[1] = playerContract.getCard((game.herdOfA2_Player1>>64) & 4294967295);
-    p1PassiveCards[2] = playerContract.getCard((game.herdOfA2_Player1>>32) & 4294967295);
-    p1PassiveCards[3] = playerContract.getCard((game.herdOfA2_Player1 & 4294967295));
-    p1PassiveCards[4] = p1PassiveCards[0] + p1PassiveCards[1] + p1PassiveCards[2] + p1PassiveCards[3];
-    
-    //player2 data
-    //region -> p2ActiveCards'da
-    //buffs -> p2PassiveCards'da
-    //5. index sum of 1-4
-    uint256[] memory p2ActiveCards = new uint256[](5);
-    p2ActiveCards[0] = playerContract.getCard((game.herdOfA2_Player2>>224) & 4294967295);
-    p2ActiveCards[1] = playerContract.getCard((game.herdOfA2_Player2>>192) & 4294967295);
-    p2ActiveCards[2] = playerContract.getCard((game.herdOfA2_Player2>>160) & 4294967295);
-    p2ActiveCards[3] = playerContract.getCard((game.herdOfA2_Player2>>128) & 4294967295);
-    p2ActiveCards[4] = p2ActiveCards[0] + p2ActiveCards[1] + p2ActiveCards[2] + p2ActiveCards[3];
- 
-    uint256[] memory p2PassiveCards = new uint256[](5);
-    p2PassiveCards[0] = playerContract.getCard((game.herdOfA2_Player2>>96) & 4294967295);
-    p2PassiveCards[1] = playerContract.getCard((game.herdOfA2_Player2>>64) & 4294967295);
-    p2PassiveCards[2] = playerContract.getCard((game.herdOfA2_Player2>>32) & 4294967295);
-    p2PassiveCards[3] = playerContract.getCard((game.herdOfA2_Player2 & 4294967295));
-    p2PassiveCards[4] = p2PassiveCards[0] + p2PassiveCards[1] + p2PassiveCards[2] + p2PassiveCards[3];   
-
-    
-/*  struct A2_PlayerState {
-    uint256 damage;
-    uint256 defenderHp;//daha az islem icin.
-    uint256 defenderCardIndex;
-    bool aktiveCardDeath;
-    bool passiveCardDeath;
-  }    */
-
+   
     A2_PlayerState memory p1 = A2_PlayerState(
       0, //uint256 damage;
       (p1ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
@@ -1780,13 +1580,236 @@ contract A1_PaniniGame1 is PaniniGameBase{
 
     return 0;
   }
+
+
+}
+
+
+
+
+//GAME-1
+//oyun'un hazir hale getirilmesi.
+//1. controller'a ekle. (Controller tarafinda.)
+//2. state'i ekle. (setState metodunu kulanarak.)
+contract A1_PaniniGame1 is PaniniGameBase{
+  //32 bit -> bitwise
+  /*struct Herd {
+    address owner;
+    //active cards
+    uint256 card1;
+    uint256 card2;
+    uint256 card3;
+    uint256 card4;
+    //passive cards
+    uint256 card5;
+    uint256 card6;
+    uint256 card7;
+    uint256 card8;
+  }*/
+
+  struct Data {
+    uint256 id;  //0 olabilir.
+    address player1;
+    address player2;
+    uint256 startTime;
+    uint256 herdOfA2_Player1;
+    uint256 herdOfA2_Player2;    
+  }
   
+  struct A2_PlayerState {
+    uint256 damage;
+    uint256 defenderHp;//daha az islem icin.
+    uint256 defenderCardIndex;
+    uint8[5] activeLifes;
+    uint8[5] passiveLifes;
+    bool aktiveCardDeath;
+    bool passiveCardDeath;
+  }
+  
+    A1_PaniniGame1Helper helper;
+
+    function setHelper(address _address) public {
+        require(_address != address(0) );        
+        helper = A1_PaniniGame1Helper(_address);
+    }
+
+  
+  int256 NEW_PLAYER_SCORE = 1200;
+  int256 MIN_SCORE = 800;
+  int256 MAX_SCORE = 2800;
+  int256 SCORE_GAP = 50;
+
+  address[] players;
+  mapping (address => uint256) playersIndex;
+  mapping (address => int256) playerScore;
+  
+  //binary tree balance olmayacagi icin(balance yapmak oyuncuya masraf.), search log(n)'de calisacak sekilde ziplayacak.
+  //tree yerine atliyarak gitse? Ortadan baslasa search'e? bole bole gitse?
+  //Data[] pendingGames; 
+
+  //hash map of arrays in score window
+  //800-> 800-850 , 850-900, 900-950
+  //1123 ->1100
+  mapping (int256 => Data[]) pendingGames;
+  
+  uint256 numberOfGames;
+
+  mapping (uint256 => Data) startedGames;
+  //mapping (uint256 => Data) finishedGames;
+
+  //butun oyuncularin oyunlarinin listesi? 
+  uint256[] games;
+  //Bir oyuncuya ait oynlarin listesi 
+  mapping (address => uint256[]) myGames;    
+
+  function A1_PaniniGame1() public {
+  }
+
+  function getMyGames() public view returns(uint256[]) {
+    return myGames[msg.sender];
+  }
+  
+
+  //oyun bulursa oyun baslatir
+  //bulamaz ise siraya girer
+  function startGameorEnterQueue(
+    uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4,
+    uint256 _card5, uint256 _card6, uint256 _card7, uint256 _card8
+  ) public {
+    //card'lari kontrol et.
+    //TODO: cardid = 0 ise kullanilmiyor. passivecard'lar icin.
+    require ( 
+      nft.ownerOf(_card1) == address(msg.sender) &&
+      nft.ownerOf(_card2) == address(msg.sender) &&
+      nft.ownerOf(_card3) == address(msg.sender) &&
+      nft.ownerOf(_card4) == address(msg.sender) &&
+      (_card5 == 0 || nft.ownerOf(_card5) == address(msg.sender)) &&
+      (_card6 == 0 || nft.ownerOf(_card6) == address(msg.sender)) &&
+      (_card7 == 0 || nft.ownerOf(_card7) == address(msg.sender)) &&
+      (_card8 == 0 || nft.ownerOf(_card8) == address(msg.sender))
+    );
+    
+    
+    //combine cardId's and enter queue
+    _queueOrFindGame( msg.sender,
+      (_card1 
+      | (_card2 << 32)
+      | (_card3 << 64)
+      | (_card4 << 96)),
+      (_card5 
+      | (_card6 << 32)
+      | (_card7 << 64)
+      | (_card8 << 96))
+    );
+  }
+
+  function _queueOrFindGame(address _address, uint256 _herdActive, uint256 _herdPassive) internal {
+    //oyuncu ilk kez oynuyor ise.
+    //register yapmayi dusundum ama, her oyunda score olmayabilir.
+    //sonra player olayini degistirebilirim.
+    if(playersIndex[_address] == 0) {
+      playerScore[_address] = NEW_PLAYER_SCORE;
+    }
+
+    int256 score = playerScore[_address];
+    int256 index = (score / SCORE_GAP) * SCORE_GAP; // kusurat atildi.
+    bool gameFound;
+    //not: else ifler icin score min max asimini kontrol etmeye gerek yok.
+    // gamenot faund'da buralar icin hic bir zaman bir atama yapilmiyor.
+    if(pendingGames[index].length > 0) {
+      gameFound = true;
+    } else if(pendingGames[index + SCORE_GAP].length > 0) {
+      gameFound = true;
+      index = index + SCORE_GAP;
+    } else if(pendingGames[index - SCORE_GAP].length > 0) {
+      gameFound = true;
+      index = index - SCORE_GAP;
+    }
+
+    if(gameFound) {
+      //sonuncuyu alsam? zaten bu kuyrugun dolmamasi lazim.
+      //index her zaman > 0 burada (aslinda herzaman 1 oluyor)
+      uint256 lastIndex = pendingGames[index].length - 1;
+      Data memory game = pendingGames[index][lastIndex];
+
+      delete pendingGames[index][lastIndex];
+      pendingGames[index].length = pendingGames[index].length -1;
+
+      //hizli erisim icin.
+      numberOfGames +=1; //id.
+      game.id = numberOfGames;
+      game.player2 = _address;
+      game.herdOfA2_Player2 = _herdActive << 128 | _herdPassive;
+      game.startTime = now;
+      startedGames[game.id] = game;
+
+      games.push(numberOfGames);
+      myGames[game.player1].push(numberOfGames);
+      myGames[game.player2].push(numberOfGames);
+
+    } else {
+      //note: struct olustururken null veremedigimiz icin hersey player1
+      //starttime = created time for pending players.
+      /*uint256 id;  //0 olabilir.
+    address player1;
+    address player2;
+    uint256 startTime;
+    Herd herdOfA2_Player1;
+    Herd herdOfA2_Player2;    */
+      Data memory newGame = Data(0, _address, _address, now, _herdActive << 128 | _herdPassive, 0);
+      //buraya kadar 100k
+      //bu satir 400k gaz...
+      pendingGames[index].push(newGame);
+    } 
+
+
+  }
+
+
+  function getActiveCards(uint256 herd) internal view returns (uint256[]){
+
+    uint256[] memory activeCards = new uint256[](5); 
+    activeCards[0] = playerContract.getCard((herd>>224) & 4294967295);
+    activeCards[1] = playerContract.getCard((herd>>192) & 4294967295);
+    activeCards[2] = playerContract.getCard((herd>>160) & 4294967295);
+    activeCards[3] = playerContract.getCard((herd>>128) & 4294967295);
+    activeCards[4] = activeCards[0] + activeCards[1] + activeCards[2] + activeCards[3];
+    return activeCards;
+
+  }
+  
+  function getPassiveCards(uint256 herd) internal view returns (uint256[]){
+
+    uint256[] memory passiveCards = new uint256[](5);
+    passiveCards[0] = playerContract.getCard((herd>>96) & 4294967295);
+    passiveCards[1] = playerContract.getCard((herd>>64) & 4294967295);
+    passiveCards[2] = playerContract.getCard((herd>>32) & 4294967295);
+    passiveCards[3] = playerContract.getCard((herd & 4294967295));
+    passiveCards[4] = passiveCards[0] + passiveCards[1] + passiveCards[2] + passiveCards[3];
+    return passiveCards;
+
+  }
+
   //function _calculateGameState(uint256 _gameId, uint256 _time)
   function checkEndFinishGame(uint256 _gameId) public returns(string){
     //TODO: Check gameId
     //todo: bu metod cagrilinca oyunu finishedgame'e koy.
     //cagirmada kontrol et. eger fnishedgames'de ise hesaplama yapma.
-    uint256 gameState = _calculateGameState(_gameId, now);
+    Data memory game = startedGames[_gameId];
+     //player1 data
+    //region -> p1ActiveCards'da
+    //buffs -> p1PassiveCards'da 
+    //5. index sum of 1-4
+    uint256[] memory p1ActiveCards = getActiveCards(game.herdOfA2_Player1);
+    uint256[] memory p1PassiveCards = getPassiveCards(game.herdOfA2_Player1);
+    
+    //player2 data
+    //region -> p2ActiveCards'da
+    //buffs -> p2PassiveCards'da
+    //5. index sum of 1-4
+    uint256[] memory p2ActiveCards = getActiveCards(game.herdOfA2_Player2);
+    uint256[] memory p2PassiveCards = getPassiveCards(game.herdOfA2_Player2);  
+    uint256 gameState = helper._calculateGameState(p1ActiveCards, p1PassiveCards, p2ActiveCards, p2PassiveCards, now);
     if(gameState == 0) {      
       return "oyun devam ediyor.";
       //hic birsey yapma. Masraf zamansiz cagirana girsin.
@@ -1814,10 +1837,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
   }
 
 }
-
-
-
-
 
 
 
