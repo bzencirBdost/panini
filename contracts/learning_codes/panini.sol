@@ -1171,8 +1171,14 @@ contract A1_PaniniGame1Helper {
     bool passiveCardDeath;
   }
 
+  //set playerContract
+  A2_Player playerContract;
+  function setA2_PlayerContract(address _address) public {  
+    require(address(playerContract) == address(0) && _address != address(0) );        
+    playerContract = A2_Player(_address);
+  }
 
-  function _sortedIndexs(uint256[] _arr)  internal pure returns(uint256[]) {
+  function _sIdxs(uint256[] _arr)  internal pure returns(uint256[]) {
     //_arr : a,b,c,d
     uint256[] memory indexs = new uint256[](5);//4->temp. + index when using.
     if((_arr[0] & 1048575) < (_arr[1] & 1048575)) {
@@ -1241,7 +1247,7 @@ contract A1_PaniniGame1Helper {
      
   //returns 800 - 1200  : 1k = 1.
   //weightRate : w1/w2 ->p1, w2/w1 ->p2
-  function _calcWeightFactor(uint256 _weightRate ) internal pure returns(uint256) {
+  function _cWF(uint256 _weightRate ) internal pure returns(uint256) {
     //kusurat icin *1000    
     if(_weightRate <= 50) {
       return 2*_weightRate + 800;
@@ -1251,15 +1257,15 @@ contract A1_PaniniGame1Helper {
     return 1200; 
   }
   
-  function _calcWeightFactors( uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256,uint256){
+  function _cWFs( uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256,uint256){
      return ( 
-      _calcWeightFactor(_weight1 / (_weight2 + 1) ), 
-      _calcWeightFactor(_weight2 / (_weight1 + 1))
+      _cWF(_weight1 / (_weight2 + 1) ), 
+      _cWF(_weight2 / (_weight1 + 1))
     );
   }
 
   // 0-1000(for %0-100). no limit.
-  function _calcDeffFactor(uint256 _deff ) internal pure returns(uint256) {
+  function _cDefF(uint256 _deff ) internal pure returns(uint256) {
     //kusurat icin *1000    
     if(_deff <= 250) {
       return _deff*10;
@@ -1280,12 +1286,12 @@ contract A1_PaniniGame1Helper {
   //(1.5*10^3*df) ~1.5*10^6
   //return: ~ (10^8) / (1.5*10^6) : ~100/1.5 = 66(1k deff icin.), 130(500 deff icin.) 
   //orn: bir fil(TANK)'in cani 1000 ise => ~10 tur'da gidici.  
-  function _calcDamageFactor(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal pure returns(uint256) {
+  function _cDamF(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal pure returns(uint256) {
     return (_ap*_sp*_wf) / (15000*_df);//x10 df
   }
 
   
-  function _calcApSpWithBuffs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256,uint256){
+  function _cApSpBfs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256,uint256){
     return (
       ((_aktiveCard & 1267649391302409786867528499200) >>80) 
       + (
@@ -1300,37 +1306,40 @@ contract A1_PaniniGame1Helper {
     );
   }
   
-  function _calcDeffFactorWithBuffs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256){
+  function _cDeffFBfs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256){
     //p1 deffFactor
-    return _calcDeffFactor(((_aktiveCard & 1208924666693124567859200) >>60)
+    return _cDefF(((_aktiveCard & 1208924666693124567859200) >>60)
       + (
         ((_aktiveCard >> 40 ) & 1048575 ) 
       * (((_passiveCard & 22213632912598862894889094373145828843847680) >> 136 ) - ((_enemyPassiveCard >> 144 ) & 65535 )) 
       )/1000);
   }
 
+    //a0,s1,df2,wf3,wf4,df5,df6
+    //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
+    //damageFactor1, damageFactor2 
 
   //calcs: damages, lifesteal,damagareflect, heal, poison. -> to just a single damage.
-  function _calculateDamages(uint256[] _calcData,
+  function _cDmgs(uint256[] _calcData,
     uint256 _p1DefenderHp, uint256 _p1Defender, uint256 _p1ActiveCard, uint256 _p1PassiveCard,
     uint256 _p2DefenderHp, uint256 _p2Defender, uint256 _p2ActiveCard, uint256 _p2PassiveCard ) internal pure returns(uint256,uint256){
 
     //p1,p2 weight factors   
-    (_calcData[3], _calcData[4]) = _calcWeightFactors( (_p1ActiveCard & 1099510579200) >>20, (_p2ActiveCard & 1099510579200) >>20 );
+    (_calcData[3], _calcData[4]) = _cWFs( (_p1ActiveCard & 1099510579200) >>20, (_p2ActiveCard & 1099510579200) >>20 );
 
     //## p1:damage factor(calcData5)
     //ap, sp -> p1
-    (_calcData[0], _calcData[1]) = _calcApSpWithBuffs( _p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
+    (_calcData[0], _calcData[1]) = _cApSpBfs( _p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
     //deffFactor -> p2
-    _calcData[3] = _calcDeffFactorWithBuffs(_p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
-    _calcData[5] = _calcDamageFactor(_calcData[0], _calcData[1], _calcData[3], _calcData[2] );
+    _calcData[2] = _cDeffFBfs(_p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
+    _calcData[5] = _cDamF(_calcData[0], _calcData[1], _calcData[3], _calcData[2] );
 
     //## p2:damage factor(calcData6)
     //ap, sp -> p2
-    (_calcData[0], _calcData[1]) = _calcApSpWithBuffs( _p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
+    (_calcData[0], _calcData[1]) = _cApSpBfs( _p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
     //deffFactor -> p1
-    _calcData[3] = _calcDeffFactorWithBuffs(_p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
-    _calcData[6] = _calcDamageFactor(_calcData[0], _calcData[1], _calcData[4], _calcData[2] );
+    _calcData[2] = _cDeffFBfs(_p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
+    _calcData[6] = _cDamF(_calcData[0], _calcData[1], _calcData[4], _calcData[2] );
     //passive1,2,9,10 /p1,p2
 
     return (
@@ -1354,22 +1363,48 @@ contract A1_PaniniGame1Helper {
     );
   }
 
+  function getCards(uint256 herd) internal view returns (uint256[]){
+
+    uint256[] memory passiveCards = new uint256[](5);
+    passiveCards[0] = playerContract.getCard((herd>>96) & 4294967295);
+    passiveCards[1] = playerContract.getCard((herd>>64) & 4294967295);
+    passiveCards[2] = playerContract.getCard((herd>>32) & 4294967295);
+    passiveCards[3] = playerContract.getCard((herd & 4294967295));
+    passiveCards[4] = passiveCards[0] + passiveCards[1] + passiveCards[2] + passiveCards[3];
+    return passiveCards;
+
+  }
+
   // 0 => not end.
   // 1 => player1 winner
   // 2 => player2 winner
   // 3 => draw
-  function _calculateGameState(uint256[] p1ActiveCards, uint256[] p1PassiveCards, uint256[] p2ActiveCards, uint256[] p2PassiveCards, uint256 _time) public returns(uint256) {
+  function _calculateGameState(uint256 herd1, uint256 herd2, uint256 _time) public returns(uint256) {
     //a0,s1,df2,wf3,wf4,df5,df6
     //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
     //damageFactor1, damageFactor2 
     uint256[] memory calcData = new uint256[](7);
-   
+    //player1 data
+    //region -> p1ActiveCards'da
+    //buffs -> p1PassiveCards'da 
+    //5. index sum of 1-4
+    uint256[] memory p1ActiveCards = getCards(herd1>>128);
+    uint256[] memory p1PassiveCards = getCards(herd1);
+    
+    //player2 data
+    //region -> p2ActiveCards'da
+    //buffs -> p2PassiveCards'da
+    //5. index sum of 1-4
+    uint256[] memory p2ActiveCards = getCards(herd2>>128);
+    uint256[] memory p2PassiveCards = getCards(herd2);  
+    
+
     A2_PlayerState memory p1 = A2_PlayerState(
       0, //uint256 damage;
       (p1ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
       0, //uint256 defenderCardIndex;
-      _sortedIndexs(p1ActiveCards),
-      _sortedIndexs(p1PassiveCards),
+      _sIdxs(p1ActiveCards),
+      _sIdxs(p1PassiveCards),
       false,//aktiveCardDeath
       false //passiveCardDeath
     );
@@ -1378,13 +1413,13 @@ contract A1_PaniniGame1Helper {
       0, //uint256 damage;
       (p2ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
       0, //uint256 defenderCardIndex;      
-      _sortedIndexs(p2ActiveCards),
-      _sortedIndexs(p2PassiveCards),
+      _sIdxs(p2ActiveCards),
+      _sIdxs(p2PassiveCards),
       false,//aktiveCardDeath
       false //passiveCardDeath
     );
 
-    (p1.damage, p2.damage) = _calculateDamages(calcData,
+    (p1.damage, p2.damage) = _cDmgs(calcData,
       p1.defenderHp, p1ActiveCards[0], p1ActiveCards[4], p1PassiveCards[4],
       p2.defenderHp, p2ActiveCards[0], p2ActiveCards[4], p2PassiveCards[4] );
 
@@ -1553,7 +1588,7 @@ contract A1_PaniniGame1Helper {
         //DAMAGE HESAPLA
         if( p1.aktiveCardDeath || p2.aktiveCardDeath || p1.passiveCardDeath || p2.passiveCardDeath ) {
 
-          (p1.damage, p2.damage) = _calculateDamages(calcData,
+          (p1.damage, p2.damage) = _cDmgs(calcData,
             p1.defenderHp, p1ActiveCards[p1.defenderCardIndex], p1ActiveCards[4], p1PassiveCards[4],
             p2.defenderHp, p2ActiveCards[p2.defenderCardIndex], p2ActiveCards[4], p2PassiveCards[4] );
 
@@ -1626,13 +1661,13 @@ contract A1_PaniniGame1 is PaniniGameBase{
     bool passiveCardDeath;
   }
   
-    A1_PaniniGame1Helper helper;
-
-    function setHelper(address _address) public {
-        require(_address != address(0) );        
-        helper = A1_PaniniGame1Helper(_address);
-    }
-
+  A1_PaniniGame1Helper helper;
+  //once player contract set edilmeli.
+  function setHelper(address _address) public {
+      require(address(helper) == address(0) && _address != address(0) );        
+      helper = A1_PaniniGame1Helper(_address);
+      helper.setA2_PlayerContract(address(playerContract));
+  }
   
   int256 NEW_PLAYER_SCORE = 1200;
   int256 MIN_SCORE = 800;
@@ -1766,29 +1801,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
   }
 
 
-  function getActiveCards(uint256 herd) internal view returns (uint256[]){
-
-    uint256[] memory activeCards = new uint256[](5); 
-    activeCards[0] = playerContract.getCard((herd>>224) & 4294967295);
-    activeCards[1] = playerContract.getCard((herd>>192) & 4294967295);
-    activeCards[2] = playerContract.getCard((herd>>160) & 4294967295);
-    activeCards[3] = playerContract.getCard((herd>>128) & 4294967295);
-    activeCards[4] = activeCards[0] + activeCards[1] + activeCards[2] + activeCards[3];
-    return activeCards;
-
-  }
-  
-  function getPassiveCards(uint256 herd) internal view returns (uint256[]){
-
-    uint256[] memory passiveCards = new uint256[](5);
-    passiveCards[0] = playerContract.getCard((herd>>96) & 4294967295);
-    passiveCards[1] = playerContract.getCard((herd>>64) & 4294967295);
-    passiveCards[2] = playerContract.getCard((herd>>32) & 4294967295);
-    passiveCards[3] = playerContract.getCard((herd & 4294967295));
-    passiveCards[4] = passiveCards[0] + passiveCards[1] + passiveCards[2] + passiveCards[3];
-    return passiveCards;
-
-  }
 
   //function _calculateGameState(uint256 _gameId, uint256 _time)
   function checkEndFinishGame(uint256 _gameId) public returns(string){
@@ -1796,20 +1808,7 @@ contract A1_PaniniGame1 is PaniniGameBase{
     //todo: bu metod cagrilinca oyunu finishedgame'e koy.
     //cagirmada kontrol et. eger fnishedgames'de ise hesaplama yapma.
     Data memory game = startedGames[_gameId];
-     //player1 data
-    //region -> p1ActiveCards'da
-    //buffs -> p1PassiveCards'da 
-    //5. index sum of 1-4
-    uint256[] memory p1ActiveCards = getActiveCards(game.herdOfA2_Player1);
-    uint256[] memory p1PassiveCards = getPassiveCards(game.herdOfA2_Player1);
-    
-    //player2 data
-    //region -> p2ActiveCards'da
-    //buffs -> p2PassiveCards'da
-    //5. index sum of 1-4
-    uint256[] memory p2ActiveCards = getActiveCards(game.herdOfA2_Player2);
-    uint256[] memory p2PassiveCards = getPassiveCards(game.herdOfA2_Player2);  
-    uint256 gameState = helper._calculateGameState(p1ActiveCards, p1PassiveCards, p2ActiveCards, p2PassiveCards, now);
+    uint256 gameState = helper._calculateGameState(game.herdOfA2_Player1, game.herdOfA2_Player2, now);
     if(gameState == 0) {      
       return "oyun devam ediyor.";
       //hic birsey yapma. Masraf zamansiz cagirana girsin.
