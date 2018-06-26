@@ -1,5 +1,5 @@
 pragma solidity 0.4.21;
-
+//run : remix-ide
 //import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
 //not: yukaridaki token ozelliklerini kod icerisinde sagliyoruz. Bu yuzden basic gas verimi icin tercih edildi.
 //import "github.com/OpenZeppelin/zeppelin-solidity/contracts/token/ERC721/ERC721BasicToken.sol";
@@ -1157,7 +1157,6 @@ contract PaniniGameBase is HasA_PaniniState, ERC721Receiver{
 
 }
 
-
 contract A1_PaniniGame1Helper {
     
 
@@ -1364,7 +1363,6 @@ contract A1_PaniniGame1Helper {
   }
 
   function getCards(uint256 herd) internal view returns (uint256[]){
-
     uint256[] memory passiveCards = new uint256[](5);
     passiveCards[0] = playerContract.getCard((herd>>96) & 4294967295);
     passiveCards[1] = playerContract.getCard((herd>>64) & 4294967295);
@@ -1379,6 +1377,9 @@ contract A1_PaniniGame1Helper {
   // 1 => player1 winner
   // 2 => player2 winner
   // 3 => draw
+
+  //107839786687433864387751105914587979168133710367608538813840266100741
+  //377439253421711279702903080799854032988620333341161505157109205958671
   function _calculateGameState(uint256 herd1, uint256 herd2, uint256 _time) public returns(uint256) {
     //a0,s1,df2,wf3,wf4,df5,df6
     //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
@@ -1459,7 +1460,7 @@ contract A1_PaniniGame1Helper {
           p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]] = p2ActiveCards[4] - p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]];  
           p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]] = 0;
         }
-        p1.activeLifes[4] += 1;
+        p2.activeLifes[4] += 1;
         //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
         if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
           p2.activeLifes[4] += 1;
