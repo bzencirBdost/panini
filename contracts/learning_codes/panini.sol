@@ -478,7 +478,7 @@ library CardBase {
     _createCardBase(0x460000001000000000000000000000005dc00014000c8000130070800013);
     _createCardBase(0x05000000010000000000000000000000bb8000c8000640002c01d4c00038);
     _createCardBase(0x190000000100000000640000000000003e80012c00064000180067200026);
-}
+  }
 
   // usuable id between 1 to (n-1)
   function existCardBase(uint256 _baseId) public view returns(bool) {
@@ -1328,50 +1328,66 @@ contract A1_PaniniGame1Helper {
       )/1000);
   }
 
+  function _cRBfs(uint256[] _c, uint256[] regionBuffs, uint256 _activeCard ) internal pure returns(uint256[]){
+    _c[8] = 0;
+    _c[9] = _activeCard >> 50;
+    for(uint8 i = 0; i < 8; i++) {
+      _c[10] = _c[9] & 15;
+      if(_c[10] > 1) {//2,3,4 icin
+        _c[8] += regionBuffs[i] >> ((_c[10] -2 )*20);
+      }
+      _c[9] = _c[9] >> 1;
+    }
+  }
     //a0,s1,df2,wf3,wf4,df5,df6
     //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
     //damageFactor1, damageFactor2 
-
   //calcs: damages, lifesteal,damagareflect, heal, poison. -> to just a single damage.
-  function _cDmgs(uint256[] _calcData,
+  function _cDmgs(uint256[] _c, uint256[] regionBuffs,
     uint256 _p1DefenderHp, uint256 _p1Defender, uint256 _p1ActiveCard, uint256 _p1PassiveCard,
     uint256 _p2DefenderHp, uint256 _p2Defender, uint256 _p2ActiveCard, uint256 _p2PassiveCard ) internal pure returns(uint256,uint256){
-
+    //calc buffs with region buff.
+    //_c[7] -> p1 buffs
+    //_c[8] -> p2 buffs
+    _cRBfs(_c, regionBuffs, _p1ActiveCard );
+    _c[7] = _p1PassiveCard + _c[8];
+    _cRBfs(_c, regionBuffs, _p2ActiveCard );
+    _c[8] += _p2PassiveCard;
     //p1,p2 weight factors   
-    (_calcData[3], _calcData[4]) = _cWFs( (_p1ActiveCard & 1099510579200) >>20, (_p2ActiveCard & 1099510579200) >>20 );
+    (_c[3], _c[4]) = _cWFs( (_p1ActiveCard & 1099510579200) >>20, (_p2ActiveCard & 1099510579200) >>20 );
 
     //## p1:damage factor(calcData5)
     //ap, sp -> p1
-    (_calcData[0], _calcData[1]) = _cApSpBfs( _p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
+    (_c[0], _c[1]) = _cApSpBfs( _p1ActiveCard, _c[7], _c[8]);
     //deffFactor -> p2
-    _calcData[2] = _cDeffFBfs(_p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
-    _calcData[5] = _cDamF(_calcData[0], _calcData[1], _calcData[3], _calcData[2] );
+    _c[2] = _cDeffFBfs(_p2ActiveCard, _c[8], _c[7]);
+    _c[5] = _cDamF(_c[0], _c[1], _c[3], _c[2] );
 
     //## p2:damage factor(calcData6)
     //ap, sp -> p2
-    (_calcData[0], _calcData[1]) = _cApSpBfs( _p2ActiveCard, _p2PassiveCard, _p1PassiveCard);
+    (_c[0], _c[1]) = _cApSpBfs( _p2ActiveCard, _c[8], _c[7]);
     //deffFactor -> p1
-    _calcData[2] = _cDeffFBfs(_p1ActiveCard, _p1PassiveCard, _p2PassiveCard);
-    _calcData[6] = _cDamF(_calcData[0], _calcData[1], _calcData[4], _calcData[2] );
+    _c[2] = _cDeffFBfs(_p1ActiveCard, _c[7], _c[8]);
+    _c[6] = _cDamF(_c[0], _c[1], _c[4], _c[2] );
     //passive1,2,9,10 /p1,p2
 
     return (
       //p1 heal+poison: p1damage += p2Hp*(p1.poison - p2.heal)(rakibin hp'si uzerinden kendi poisonunu ekle, rakibin heal'ini cikar. )
       //p1 lifeSteal: p1damage -= (p2.damage*p2ActiveCards[0].passive9)/1000;(rakibin lifesteal'ini kendi damagesinden cikart.)
       //p1 damage reflection: p1damage += (p2.damage*p1ActiveCards[0].passive10)/1000; (rakibin damagesini kendi passif dam.reflectionu ile kendi damagesine ekle.)
-      _calcData[5] + 
+      _c[5] + 
       (  _p2DefenderHp *(((_p1PassiveCard >>184 ) & 65535 ) - ( (_p2PassiveCard >>176 ) & 65535 ))
-       - (_calcData[6] * ((_p2Defender & 86772003564839308183160524895100893921280) >> 128 ))
-       + (_calcData[6] * ((_p1Defender >>120 ) & 65535 ))
+       - (_c[6] * ((_p2Defender & 86772003564839308183160524895100893921280) >> 128 ))
+       + (_c[6] * ((_p1Defender >>120 ) & 65535 ))
       )/1000,
 
       //p2 heal+poison: p2damage += p1Hp*(p2.poison - p1.heal)(rakibin hp'si uzerinden kendi poisonunu ekle, rakibin heal'ini cikar. )
       //p2 lifeSteal: p2damage -= (p1.damage*p1ActiveCards[0].passive9)/1000;(rakibin lifesteal'ini kendi damagesinden cikart.)
       //p2 damage reflection: p2damage += (p1.damage*p2ActiveCards[0].passive10)/1000; (rakibin damagesini kendi passif dam.reflectionu ile kendi damagesine ekle.)
-      _calcData[6] + 
+      _c[6] + 
       (  _p1DefenderHp *(((_p2PassiveCard >>184 ) & 65535 ) - ( (_p1PassiveCard >>176 ) & 65535 ))
-       - (_calcData[5] * ((_p1Defender & 86772003564839308183160524895100893921280) >> 128 ))
-       + (_calcData[5] * ((_p2Defender >>120 ) & 65535 ))
+       - (_c[5] * ((_p1Defender & 86772003564839308183160524895100893921280) >> 128 ))
+       + (_c[5] * ((_p2Defender >>120 ) & 65535 ))
       )/1000
     );
   }
@@ -1395,10 +1411,21 @@ contract A1_PaniniGame1Helper {
   //107839786687433864387751105914587979168133710367608538813840266100741
   //377439253421711279702903080799854032988620333341161505157109205958671
   function _calculateGameState(uint256 herd1, uint256 herd2, uint256 _time) public returns(uint256) {
+    uint256[] memory regionBuffs = new uint256[](8);
+    regionBuffs[0] = 0x0000000028500000000000000000281e0000000000000000001e00000000;
+    regionBuffs[1] = 0x1e1e0000002800000000001e0000002800000000001e0000000000000000;
+    regionBuffs[2] = 0x0000001e005a000000000000001e0028000000000000001e000000000000;
+    regionBuffs[3] = 0x00000028000000500000000000280000001e0000000000000000001e0000;
+    regionBuffs[4] = 0x002800500000000000000028001e0000000000000000001e000000000000;
+    regionBuffs[5] = 0x5a0000000000000000003200000000000000000014000000000000000000;
+    regionBuffs[6] = 0x000032003200002800000000000032000028000000000000320000000000;
+    regionBuffs[7] = 0x00500000280000000000001e0000280000000000001e0000000000000000;
+
     //a0,s1,df2,wf3,wf4,df5,df6
     //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
     //damageFactor1, damageFactor2 
-    uint256[] memory calcData = new uint256[](7);
+    //regionBuffs1, regionBuffs2 -> to to buffs. , + shiftedRegion , index
+    uint256[] memory calcData = new uint256[](11);
     //player1 data
     //region -> p1ActiveCards'da
     //buffs -> p1PassiveCards'da 
@@ -1434,7 +1461,7 @@ contract A1_PaniniGame1Helper {
       false //passiveCardDeath
     );
 
-    (p1.damage, p2.damage) = _cDmgs(calcData,
+    (p1.damage, p2.damage) = _cDmgs(calcData, regionBuffs,
       p1.defenderHp, p1ActiveCards[0], p1ActiveCards[4], p1PassiveCards[4],
       p2.defenderHp, p2ActiveCards[0], p2ActiveCards[4], p2PassiveCards[4] );
 
@@ -1443,31 +1470,54 @@ contract A1_PaniniGame1Helper {
  //   for(uint256 i = game.startTime; i < _time; i = i + 60) { //time lapse :2 sec, it will be change.
     for(uint256 i = 0; i < 100; i++) { //time lapse :2 sec, it will be change.
 
+
+      //####################################
+      //ATTACK P1-P2 AND DAMAGE DONE
+      //####################################
+      if(p1.defenderHp <= p2.damage) {
+        //Damage can'dan cok ise oldur.
+        p1.defenderHp = 0; //defender'in olmesi durumunda defendirin oldurulmesi asagida yapilmakta.
+        p1.aktiveCardDeath = true;
+      } else {
+        //damage can'dan az. uygula.
+        p1.defenderHp -= p2.damage;
+        //eger heal + lifesteal yuzunden damage negatif ise. max hp'yi gecme
+        if(p2.damage < 0 && p1.defenderHp > ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
+          p1.defenderHp = ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
+        }
+      }
+      //p2
+      if(p2.defenderHp <= p1.damage) {
+        p2.defenderHp = 0; 
+        p2.aktiveCardDeath = true;
+      } else {
+        p2.defenderHp -= p1.damage;
+        if(p1.damage < 0 && p2.defenderHp > ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
+          p2.defenderHp = ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
+        }
+      }
+
+      //####################################
+      //P1-P2 LIFE SPAN
+      //####################################
+      //buraya gelirken: defender olmus olabilir veya yasiyordur.
+      //defender olmus ise?
+      // not:  bu index hesaplama defender'dan sonra yapilmali?
       //p1 aktive life span deaths.
       if((p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]]  & 1048575)<= i) {
         //olen defender mi?
-        //bu turun sonunda oluyor aslinda(damagesini yapiyor.).
         if(p1.activeLifes[p1.activeLifes[4]] == p1.defenderCardIndex) {
-          p1.defenderHp = 0;
+          p1.defenderHp = 0; //defender'in olmesi durumunda defendirin oldurulmesi asagida yapilmakta.
         } else {
+          //kart'i oldur.
           p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]] = p1ActiveCards[4] - p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]];  
           p1ActiveCards[p1.activeLifes[p1.activeLifes[4]]] = 0;
         }
         p1.activeLifes[4] += 1;
-        //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
-        if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
-          p1.activeLifes[4] += 1;
-          if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
-            p1.activeLifes[4] += 1;
-          }
-        }
         p1.aktiveCardDeath = true;
       }
-
-      //p2 aktive life span deaths.
-      if(( p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]]  & 1048575 ) <= i) {
-        //olen defender mi?
-        //bu turun sonunda oluyor aslinda(damagesini yapiyor.).
+      //p2
+      if((p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]]  & 1048575)<= i) {
         if(p2.activeLifes[p2.activeLifes[4]] == p2.defenderCardIndex) {
           p2.defenderHp = 0;
         } else {
@@ -1475,38 +1525,92 @@ contract A1_PaniniGame1Helper {
           p2ActiveCards[p2.activeLifes[p2.activeLifes[4]]] = 0;
         }
         p2.activeLifes[4] += 1;
-        //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
-        if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
-          p2.activeLifes[4] += 1;
-          if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
-            p2.activeLifes[4] += 1;
-          }
-        }
         p2.aktiveCardDeath = true;
       }
+      
+      //--------------------------------------------
 
-      //p1 pasive life span deaths.
+      //p1-p2 pasive life span deaths.
       if( p1.passiveLifes[4] < 4 && ( p1PassiveCards[p1.passiveLifes[p1.passiveLifes[4]]] & 1048575) <= i ) {
         p1.passiveLifes[4] += 1;
         p1PassiveCards[4] = p1PassiveCards[4] - p1PassiveCards[p1.passiveLifes[p1.passiveLifes[4]]];          
         p1.passiveCardDeath = true;
       }
-      //p2 pasive life span deaths.
+      //p2
       if( p2.passiveLifes[4] < 4 && ( p2PassiveCards[p2.passiveLifes[p2.passiveLifes[4]]] & 1048575) <= i ) {
         p2.passiveLifes[4] += 1;
         p2PassiveCards[4] = p2PassiveCards[4] - p2PassiveCards[p2.passiveLifes[p2.passiveLifes[4]]];          
         p2.passiveCardDeath = true;
       }
+          
+      
+      
+      //####################################
+      //P1 DEFENDER DIED. SET NEXT DEFENDER
+      //####################################
+      if(p1.defenderHp == 0) {
+        //DEFENDER'IN OLDURULMESI
+        p1ActiveCards[4] = p1ActiveCards[4] - p1ActiveCards[p1.defenderCardIndex];          
+        p1ActiveCards[p1.defenderCardIndex] = 0;
+        //siradaki defender'a gec.
+        p1.defenderCardIndex++;
+        //life span ile olen defender'lari atla.
+        //defender index bu if-else'de max 4 olmakta!
+        //ONEMLI:defender index 4 olunca yasayan kart kalmadi demektir.
+        if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+          p1.defenderCardIndex++;
+          if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+            p1.defenderCardIndex++;
+            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+              p1.defenderCardIndex++;
+            }     
+          }   
+        }
 
-      //p1 saldiri.
-      if(p2.defenderHp <= p1.damage) {
-        //died.
+        //DEFENDER INDEX 4 DEGIL ISE
+        if(p1.defenderCardIndex < 4) {
+          p1.defenderHp = ( p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;          
+        }
+      }
+      //p2
+      if(p2.defenderHp == 0) {
         p2ActiveCards[4] = p2ActiveCards[4] - p2ActiveCards[p2.defenderCardIndex];          
         p2ActiveCards[p2.defenderCardIndex] = 0;
-        //yasam suresi bitmemis ise arttir. //eger yasam suresi bitmisse zaten arttiramayacak.
-        if(p2.activeLifes[p2.activeLifes[4]] == p2.defenderCardIndex) {
+        p2.defenderCardIndex++;
+        if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+          p2.defenderCardIndex++;
+          if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+            p2.defenderCardIndex++;
+            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+              p2.defenderCardIndex++;
+            }     
+          }   
+        }
+
+        //DEFENDER INDEX 4 DEGIL ISE
+        if(p2.defenderCardIndex < 4) {
+          p2.defenderHp = ( p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;          
+        }
+      }
+
+
+      //oyun devam ediyor ise
+      if(p1.defenderCardIndex < 4 && p2.defenderCardIndex < 4) {
+
+        //p1-p2 aktiveLifes index'i yenden set et.
+        //buradan once activeLifes index 4 olabilir(son defender'i oldurdu.). ancak yukaridaki if'e giriyorsa son defender degildir.
+        //bu durumda asagidan cikarken her zaman p2.aktiveLifes[4] < 4.
+        if( p1.aktiveCardDeath && p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+          p1.activeLifes[4] += 1;
+          if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+            p1.activeLifes[4] += 1;
+            if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
+              p1.activeLifes[4] += 1;
+            }
+          }
+        }
+        if( p2.aktiveCardDeath && p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
           p2.activeLifes[4] += 1;
-          //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
           if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
             p2.activeLifes[4] += 1;
             if(p2.activeLifes[p2.activeLifes[4]] < p2.defenderCardIndex) {
@@ -1515,95 +1619,12 @@ contract A1_PaniniGame1Helper {
           }
         }
 
-        p2.defenderHp = 0;
-        p2.aktiveCardDeath = true;
-
-      } else {
-        p2.defenderHp -= p1.damage;
-        //eger heal + lifesteal yuzunden damage negatif ise. max hp'yi gecme
-        if(p1.damage < 0 && p2.defenderHp > ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
-          p2.defenderHp = ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
-        }
-      }
-
-      //p2 saldiri.
-      if(p1.defenderHp <= p2.damage) {
-        //died.
-        p1ActiveCards[4] = p1ActiveCards[4] - p1ActiveCards[p1.defenderCardIndex];          
-        p1ActiveCards[p1.defenderCardIndex] = 0;
-        //yasam suresi bitmemis ise arttir. //eger yasam suresi bitmisse zaten arttiramayacak.
-        if(p1.activeLifes[p1.activeLifes[4]] == p1.defenderCardIndex) {
-          p1.activeLifes[4] += 1;
-          //sonraki kart eger savasta olmus kart ise tekrar tekrar damage hesaplmasin sonraki turlarda
-          if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
-            p1.activeLifes[4] += 1;
-            if(p1.activeLifes[p1.activeLifes[4]] < p1.defenderCardIndex) {
-              p1.activeLifes[4] += 1;
-            }
-          }
-        }
-
-        p1.defenderHp = 0;
-        p1.aktiveCardDeath = true;
-
-      } else {
-        p1.defenderHp -= p2.damage;
-        //eger heal + lifesteal yuzunden damage negatif ise. max hp'yi gecme
-        if(p2.damage < 0 && p1.defenderHp >  ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
-          p1.defenderHp = ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
-        }
-      }
-
-      //p1 index ve hp duzenlenmesi
-      if(p1.aktiveCardDeath ) {
-        
-        //defender olduyse yeni defendar belirle.
-        if(p1.defenderHp == 0) {
-
-          p1.defenderCardIndex++;
-          //life span ile olenleri gec.
-          if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
-            p1.defenderCardIndex++;
-            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
-              p1.defenderCardIndex++;
-            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
-                p1.defenderCardIndex++;
-              }     
-            }   
-          }
-          p1.defenderHp = ( p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;
-        }
-      }
-
-      //p2 index ve hp duzenlenmesi
-      if(p2.aktiveCardDeath ) {
-        
-        //defender olduyse yeni defendar belirle.
-        if(p2.defenderHp == 0) {
-
-          p2.defenderCardIndex++;
-          //life span ile olenleri gec.
-          if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
-            p2.defenderCardIndex++;
-            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
-              p2.defenderCardIndex++;
-            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
-                p2.defenderCardIndex++;
-              }     
-            }   
-          }
-          p2.defenderHp = ( p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;
-        }
-      }
-
-
-      if(p1.defenderCardIndex < 4 && p2.defenderCardIndex < 4) {
 
         //bir kart olduyse.
         //DAMAGE HESAPLA
         if( p1.aktiveCardDeath || p2.aktiveCardDeath || p1.passiveCardDeath || p2.passiveCardDeath ) {
 
-          (p1.damage, p2.damage) = _cDmgs(calcData,
+          (p1.damage, p2.damage) = _cDmgs(calcData, regionBuffs,
             p1.defenderHp, p1ActiveCards[p1.defenderCardIndex], p1ActiveCards[4], p1PassiveCards[4],
             p2.defenderHp, p2ActiveCards[p2.defenderCardIndex], p2ActiveCards[4], p2PassiveCards[4] );
 
@@ -1664,16 +1685,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
     uint256 startTime;
     uint256 herdOfA2_Player1;
     uint256 herdOfA2_Player2;    
-  }
-  
-  struct A2_PlayerState {
-    uint256 damage;
-    uint256 defenderHp;//daha az islem icin.
-    uint256 defenderCardIndex;
-    uint8[5] activeLifes;
-    uint8[5] passiveLifes;
-    bool aktiveCardDeath;
-    bool passiveCardDeath;
   }
   
   A1_PaniniGame1Helper helper;
