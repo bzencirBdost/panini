@@ -453,31 +453,31 @@ library CardBase {
   function initCardBase() internal {
     //id'lerin indexler ile ayni olmasi icin eklendi. Kullanilmayacak. bunun id'si 0.
     _createCardBase(0); 
-    _createCardBase(0x461000000000000064000000000000003e800096000c800032000be0001a);
-    _createCardBase(0x46100000000000000000000000000000050000140001400018000060000e);
-    _createCardBase(0x0510000000000000000000007800000009600028000320004b0025800013);
-    _createCardBase(0x191000000000000000008c00000000005dc000640012c00023004b000011);
-    _createCardBase(0x05100000000000003200000000000000258000c80009600028000dc0000f);
-    _createCardBase(0x051000000000000000000000640000000640006400032000960000700012);
-    _createCardBase(0x46010000000096000000000000000000014000050000a000400000100012);
-    _createCardBase(0x4601000000000000780000000000000001e000640001e000110000100016);
-    _createCardBase(0x460010000000000000000050000000000c80000a00064000520012c0000f);
-    _createCardBase(0x460010000078000000000000000000000320006400032000030000100018);
-    _createCardBase(0x460010000000000000000000000000000fa00064000960004b000200000c);
-    _createCardBase(0x190001000000000000000000780000000fa000960005000070000300000b);
-    _createCardBase(0x1900010000000000003c00000000000015e000fa000780003c0004d00018);
-    _createCardBase(0x19000100000000003c000000000000009c400064000640002d009c40002d);
-    _createCardBase(0x050001000000000064000000000000003e8000c8001900002a0044c0002f);
-    _createCardBase(0x1900010000780000000000000000000000a000280000a00005000020000b);
-    _createCardBase(0x0500001000007800000000000000000012c0000a0012c00020000b400020);
-    _createCardBase(0x05000010000000000000c80000000000fa00012c001f40002b00fa000043);
-    _createCardBase(0x19000010005a0000000000000000000003c0004600032000070000500012);
-    _createCardBase(0x050000010000000050000000000000000780005a00050000180000700007);
-    _createCardBase(0x460000010000500000000000000000000c80002800064000370004100007);
-    _createCardBase(0x050000010000b40000000000000000000140000a0000a000020000800012);
-    _createCardBase(0x460000001000000000000000000000005dc00014000c8000130070800013);
-    _createCardBase(0x05000000010000000000000000000000bb8000c8000640002c01d4c00038);
-    _createCardBase(0x190000000100000000640000000000003e80012c00064000180067200026);
+    _createCardBase(0x4610000000000000640000000000000032000050000c800032000be0001a);
+    _createCardBase(0x46100000000032000000000000000000050000140001400018000060000e);
+    _createCardBase(0x051000000000000000000000780000000960001e000320004b0025800013);
+    _createCardBase(0x191000000000000000005000000000003e8000320012c00023004b000011);
+    _createCardBase(0x05100000000000000000000000280000258000500009600028000dc0000f);
+    _createCardBase(0x051000000000000000000000500000000640003c00032000960000700012);
+    _createCardBase(0x4601000000003c000000000000000000014000050000a000400000100012);
+    _createCardBase(0x4601000000000000500000000000000001e0001e0001e000110000100016);
+    _createCardBase(0x46001000000000000000003c000000000c80000a00064000520012c0000f);
+    _createCardBase(0x460010000028000000000000000000000320002800032000030000100018);
+    _createCardBase(0x460010000000000000000000003c00000fa00046000960004b000200000c);
+    _createCardBase(0x190001000000000000000000780000000fa0005a0005000070000300000b);
+    _createCardBase(0x1900010000000000003c00000000000015e0006e000780003c0004d00018);
+    _createCardBase(0x19000100000000003c000000000000006400003c000640002d009c40002d);
+    _createCardBase(0x050001000000000064000000000000003e800064001900002a0044c0002f);
+    _createCardBase(0x1900010000280000000000000000000000a000280000a00005000020000b);
+    _createCardBase(0x0500001000003c00000000000000000012c0000a0012c00020000b400020);
+    _createCardBase(0x050000100000000000006400000000006a400078001f40002b00fa000043);
+    _createCardBase(0x1900001000320000000000000000000003c0003200032000070000500012);
+    _createCardBase(0x050000010000000050000000000000000780003200050000180000700007);
+    _createCardBase(0x4600000100000000000000000000c8000c80001400064000370004100007);
+    _createCardBase(0x050000010000320000000000000000000140000a0000a000020000800012);
+    _createCardBase(0x4600000010000000000000000000960025800014000c8000130070800013);
+    _createCardBase(0x050000000100000000000000002800005780005a000640002c01d4c00038);
+    _createCardBase(0x190000000100000000640000000000003200005000064000180067200026);
   }
 
   // usuable id between 1 to (n-1)
@@ -1171,12 +1171,13 @@ contract PaniniGameBase is HasA_PaniniState, ERC721Receiver{
 
 }
 
+
 contract A1_PaniniGame1Helper {
     
 
   struct A2_PlayerState {
-    uint256 damage;
-    uint256 defenderHp;//daha az islem icin.
+    int256 damage;
+    int256 defenderHp;//daha az islem icin.
     uint256 defenderCardIndex;
     uint256[] activeLifes;
     uint256[] passiveLifes;
@@ -1190,6 +1191,30 @@ contract A1_PaniniGame1Helper {
     require(address(playerContract) == address(0) && _address != address(0) );        
     playerContract = A2_Player(_address);
   }
+
+    //test codes
+    function _getP1Herd(uint256 _herdActive, uint256 _herdPassive) internal  returns(uint256){
+        return _herdActive << 128 | _herdPassive;    
+    }
+
+    //4,1,15,18,23,21,16,10
+    //485279040102868042336267984662582225860263316159273209057413494210583
+    //14,17,11,12,2,3,20,8
+    //323519360074855796650103197285818554485919669592759885082778738360322
+    function getHerd(uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4,
+        uint256 _card5, uint256 _card6, uint256 _card7, uint256 _card8) public view returns(uint256) {
+      return _getP1Herd(
+      (_card1 
+      | (_card2 << 32)
+      | (_card3 << 64)
+      | (_card4 << 96)),
+      (_card5 
+      | (_card6 << 32)
+      | (_card7 << 64)
+      | (_card8 << 96))
+      );
+    }
+    
 
   function _sIdxs(uint256[] _arr)  internal pure returns(uint256[]) {
     //_arr : a,b,c,d
@@ -1260,7 +1285,7 @@ contract A1_PaniniGame1Helper {
      
   //returns 800 - 1200  : 1k = 1.
   //weightRate : w1/w2 ->p1, w2/w1 ->p2
-  function _cWF(uint256 _weightRate ) internal pure returns(uint256) {
+  function _cWF(uint256 _weightRate ) public pure returns(uint256) {
     //kusurat icin *1000    
     if(_weightRate <= 50) {
       return 2*_weightRate + 800;
@@ -1270,24 +1295,56 @@ contract A1_PaniniGame1Helper {
     return 1200; 
   }
   
-  function _cWFs( uint256 _weight1, uint256 _weight2 ) internal pure returns(uint256,uint256){
+  function _cWFs( uint256 _weight1, uint256 _weight2 ) public pure returns(uint256,uint256){
      return ( 
-      _cWF(_weight1 / (_weight2 + 1) ), 
-      _cWF(_weight2 / (_weight1 + 1))
+      _cWF((_weight1 *100 ) / (_weight2 + 1)), 
+      _cWF((_weight2 *100 ) / (_weight1 + 1))
     );
   }
 
-  // 0-1000(for %0-100). no limit.
-  function _cDefF(uint256 _deff ) internal pure returns(uint256) {
+  // 0-9000(for %0-90).
+  function _cDefF(int256 _deff ) public pure returns(uint256) {
     //kusurat icin *1000    
-    if(_deff <= 250) {
-      return _deff*10;
+    if(_deff <= 0) {
+      return 1;
+    } else if(_deff <= 250) {
+      return uint256(10*_deff);
     } else if(_deff <= 500) {
-      return 8*_deff + 500;
+      return uint256(8*_deff + 500);
     } else if(_deff <= 1000) {
-      return 5*_deff + 2500;
+      return uint256(5*_deff + 2000);
+    } else if(_deff < 2000 ) {
+      return uint256(2*_deff + 5000);
     }
-    return 2*_deff + 5000;
+    return 9000;
+  }
+
+  //0-600
+  //600-
+  function _cSpF(uint256 _sp ) public pure returns(uint256) {
+    //kusurat icin *1000    
+    if(_sp <= 60) {
+      return 10*_sp;//10-600
+    } else if(_sp <= 120) {
+      return 6*_sp + 240;//600-960
+    } else if(_sp <= 180) {
+      return 2*_sp + 720;//960-1080
+    } 
+    return _sp + 900;
+  }
+
+  //0-600
+  //600-
+  function _cApF(uint256 _ap ) public pure returns(uint256) {
+    //kusurat icin *1000    
+    if(_ap <= 100) {
+      return 10*_ap;//10-1000
+    } else if(_ap <= 200) {
+      return 7*_ap + 300;//1000-1700
+    } else if(_ap <= 400) {
+      return 4*_ap + 900;//1700-2500
+    } 
+    return 2*_ap + 1700;//2500++
   }
 
   //ap: ~400
@@ -1296,56 +1353,55 @@ contract A1_PaniniGame1Helper {
   //(ap*sp*wf) : ~10^8
   //df: ~1000(max) : normalde 500 civaridir.x10
   //(dk*5xAp*5xSp) :(60*5*5 = 1500) : 1.5*10^3
-  //(1.5*10^3*df) ~1.5*10^6
-  //return: ~ (10^8) / (1.5*10^6) : ~100/1.5 = 66(1k deff icin.), 130(500 deff icin.) 
-  //orn: bir fil(TANK)'in cani 1000 ise => ~10 tur'da gidici.  
-  function _cDamF(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) internal pure returns(uint256) {
-    return (_ap*_sp*_wf) / (15000*_df);//x10 df
+  function _cDamF(uint256 _ap, uint256 _sp, uint256 _wf, uint256 _df ) public pure returns(uint256) {
+    return ( _cApF(_ap) * _cSpF(_sp) *_wf * _df) / (60000000000);//(10*600*1000*10000);
   }
 
   
-  function _cApSpBfs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256,uint256){
-    return (
-      ((_aktiveCard & 1267649391302409786867528499200) >>80) 
+  function _cApSpBfs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) public pure returns(uint256,uint256){
+    return (uint256(
+      int256(((_aktiveCard >> 80 ) & 1048575)) 
       + (
-        ((_aktiveCard & 1267649391302409786867528499200) >> 80 ) 
-      * (((_passiveCard & 95406826884961342500336545879718955523139276405473280) >> 168 ) - ((_enemyPassiveCard >> 176 ) & 65535 )) 
-      )/1000,
-      ((_aktiveCard  >>40 ) & 1048575)
+        int256(((_aktiveCard >> 80 ) & 1048575)) 
+      * (int256(((_passiveCard >> 168 ) & 255 )) - int256(((_enemyPassiveCard >> 176 ) & 255 ))) 
+      )/1000),
+      uint256(
+      int256(((_aktiveCard >> 40 ) & 1048575))
       + (
-        ((_aktiveCard & 1208924666693124567859200) >> 60 ) 
-      * (((_passiveCard & 1455792646560079078679451688838485039110401556480) >>152 ) - ((_enemyPassiveCard >> 160 ) & 65535 )) 
-      )/1000
+        int256(((_aktiveCard >> 40 ) & 1048575)) 
+      * (int256(((_passiveCard >> 136 ) & 255)) - int256(((_enemyPassiveCard >> 144 ) & 255))) 
+      )/1000)
     );
   }
   
-  function _cDeffFBfs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) internal pure returns(uint256){
+  function _cDeffFBfs(uint256 _aktiveCard, uint256 _passiveCard, uint256 _enemyPassiveCard) public pure returns(uint256){
     //p1 deffFactor
-    return _cDefF(((_aktiveCard & 1208924666693124567859200) >>60)
+    return _cDefF(int256(((_aktiveCard >> 60 ) & 1048575))
       + (
-        ((_aktiveCard >> 40 ) & 1048575 ) 
-      * (((_passiveCard & 22213632912598862894889094373145828843847680) >> 136 ) - ((_enemyPassiveCard >> 144 ) & 65535 )) 
+        int256(((_aktiveCard >> 40 ) & 1048575 )) 
+      * (int256(((_passiveCard >> 152 ) & 255 )) - int256(((_enemyPassiveCard >> 160 ) & 255 ))) 
       )/1000);
   }
 
-  function _cRBfs(uint256[] _c, uint256[] regionBuffs, uint256 _activeCard ) internal pure returns(uint256[]){
+  function _cRBfs(uint256[] _c, uint256[] regionBuffs, uint256 _activeCard ) public pure returns(uint256[]){
     _c[8] = 0;
-    _c[9] = _activeCard >> 50;
+    _c[9] = _activeCard >> 200;
     for(uint8 i = 0; i < 8; i++) {
       _c[10] = _c[9] & 15;
       if(_c[10] > 1) {//2,3,4 icin
-        _c[8] += regionBuffs[i] >> ((_c[10] -2 )*20);
+        _c[8] += regionBuffs[i] >> ((_c[10] -2 )*80);
       }
-      _c[9] = _c[9] >> 1;
+      _c[9] = _c[9] >> 4;
     }
+    _c[8] = _c[8] << 120;
   }
     //a0,s1,df2,wf3,wf4,df5,df6
     //calcData: [ap, sp, deffFactor, weightFactor1, weightFactor2]; ao, sp, deffFactor <-(for p1, p2)
     //damageFactor1, damageFactor2 
   //calcs: damages, lifesteal,damagareflect, heal, poison. -> to just a single damage.
   function _cDmgs(uint256[] _c, uint256[] regionBuffs,
-    uint256 _p1DefenderHp, uint256 _p1Defender, uint256 _p1ActiveCard, uint256 _p1PassiveCard,
-    uint256 _p2DefenderHp, uint256 _p2Defender, uint256 _p2ActiveCard, uint256 _p2PassiveCard ) internal pure returns(uint256,uint256){
+    int256 _p1DefenderHp, uint256 _p1Defender, uint256 _p1ActiveCard, uint256 _p1PassiveCard,
+    int256 _p2DefenderHp, uint256 _p2Defender, uint256 _p2ActiveCard, uint256 _p2PassiveCard ) public pure returns(int256,int256){
     //calc buffs with region buff.
     //_c[7] -> p1 buffs
     //_c[8] -> p2 buffs
@@ -1354,7 +1410,7 @@ contract A1_PaniniGame1Helper {
     _cRBfs(_c, regionBuffs, _p2ActiveCard );
     _c[8] += _p2PassiveCard;
     //p1,p2 weight factors   
-    (_c[3], _c[4]) = _cWFs( (_p1ActiveCard & 1099510579200) >>20, (_p2ActiveCard & 1099510579200) >>20 );
+    (_c[3], _c[4]) = _cWFs( (_p1ActiveCard >> 20 ) & 1048575, (_p2ActiveCard >> 20 ) & 1048575);
 
     //## p1:damage factor(calcData5)
     //ap, sp -> p1
@@ -1375,29 +1431,32 @@ contract A1_PaniniGame1Helper {
       //p1 heal+poison: p1damage += p2Hp*(p1.poison - p2.heal)(rakibin hp'si uzerinden kendi poisonunu ekle, rakibin heal'ini cikar. )
       //p1 lifeSteal: p1damage -= (p2.damage*p2ActiveCards[0].passive9)/1000;(rakibin lifesteal'ini kendi damagesinden cikart.)
       //p1 damage reflection: p1damage += (p2.damage*p1ActiveCards[0].passive10)/1000; (rakibin damagesini kendi passif dam.reflectionu ile kendi damagesine ekle.)
-      _c[5] + 
-      (  _p2DefenderHp *(((_p1PassiveCard >>184 ) & 65535 ) - ( (_p2PassiveCard >>176 ) & 65535 ))
-       - (_c[6] * ((_p2Defender & 86772003564839308183160524895100893921280) >> 128 ))
-       + (_c[6] * ((_p1Defender >>120 ) & 65535 ))
-      )/1000,
+      int256(_c[5]) + 
+      (  _p2DefenderHp *int256((((_p1PassiveCard >> 192 ) & 255 ))) - int256(( (_p2PassiveCard >> 184 ) & 255 ))
+        //burasi toplanabilir sonra.
+       - int256((_c[6] * ((_p2Defender >> 128 ) & 255 )))
+       + int256((_c[6] * ((_p1Defender >> 120 ) & 255 )))
 
+      )/1000,
+    
       //p2 heal+poison: p2damage += p1Hp*(p2.poison - p1.heal)(rakibin hp'si uzerinden kendi poisonunu ekle, rakibin heal'ini cikar. )
       //p2 lifeSteal: p2damage -= (p1.damage*p1ActiveCards[0].passive9)/1000;(rakibin lifesteal'ini kendi damagesinden cikart.)
       //p2 damage reflection: p2damage += (p1.damage*p2ActiveCards[0].passive10)/1000; (rakibin damagesini kendi passif dam.reflectionu ile kendi damagesine ekle.)
-      _c[6] + 
-      (  _p1DefenderHp *(((_p2PassiveCard >>184 ) & 65535 ) - ( (_p1PassiveCard >>176 ) & 65535 ))
-       - (_c[5] * ((_p1Defender & 86772003564839308183160524895100893921280) >> 128 ))
-       + (_c[5] * ((_p2Defender >>120 ) & 65535 ))
+      int256(_c[6]) + 
+      (  _p1DefenderHp *int256((((_p2PassiveCard >> 192 ) & 255 ))) - int256(( (_p1PassiveCard >> 184 ) & 255 ))
+        //burasi toplanabilir sonra.
+       - int256((_c[5] * ((_p2Defender >> 128 ) & 255 )))
+       + int256((_c[5] * ((_p1Defender >> 120 ) & 255 )))
       )/1000
     );
   }
 
   function getCards(uint256 herd) internal view returns (uint256[]){
     uint256[] memory passiveCards = new uint256[](5);
-    passiveCards[0] = playerContract.getCard((herd>>96) & 4294967295);
-    passiveCards[1] = playerContract.getCard((herd>>64) & 4294967295);
-    passiveCards[2] = playerContract.getCard((herd>>32) & 4294967295);
-    passiveCards[3] = playerContract.getCard((herd & 4294967295));
+    passiveCards[0] = playerContract.getCard(herd & 4294967295);
+    passiveCards[1] = playerContract.getCard((herd>>32) & 4294967295);
+    passiveCards[2] = playerContract.getCard((herd>>64) & 4294967295);
+    passiveCards[3] = playerContract.getCard((herd>>96) & 4294967295);
     passiveCards[4] = passiveCards[0] + passiveCards[1] + passiveCards[2] + passiveCards[3];
     return passiveCards;
 
@@ -1442,8 +1501,8 @@ contract A1_PaniniGame1Helper {
     
 
     A2_PlayerState memory p1 = A2_PlayerState(
-      0, //uint256 damage;
-      (p1ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
+      0, //int256 damage;
+      int256((p1ActiveCards[0] >> 100 ) & 1048575), //defenderHp
       0, //uint256 defenderCardIndex;
       _sIdxs(p1ActiveCards),
       _sIdxs(p1PassiveCards),
@@ -1452,8 +1511,8 @@ contract A1_PaniniGame1Helper {
     );
     
     A2_PlayerState memory p2 = A2_PlayerState(
-      0, //uint256 damage;
-      (p2ActiveCards[0] & 1329226728134315644674405563577139200) >> 100, //defenderHp
+      0, //int256 damage;
+      int256((p2ActiveCards[0] >> 100 ) & 1048575), //defenderHp
       0, //uint256 defenderCardIndex;      
       _sIdxs(p2ActiveCards),
       _sIdxs(p2PassiveCards),
@@ -1464,8 +1523,7 @@ contract A1_PaniniGame1Helper {
     (p1.damage, p2.damage) = _cDmgs(calcData, regionBuffs,
       p1.defenderHp, p1ActiveCards[0], p1ActiveCards[4], p1PassiveCards[4],
       p2.defenderHp, p2ActiveCards[0], p2ActiveCards[4], p2PassiveCards[4] );
-
-    //iki saldiri'da ayni anda yapilacak.
+//iki saldiri'da ayni anda yapilacak.
     //60 => 60 sec.(1min) 
  //   for(uint256 i = game.startTime; i < _time; i = i + 60) { //time lapse :2 sec, it will be change.
     for(uint256 i = 0; i < 100; i++) { //time lapse :2 sec, it will be change.
@@ -1482,8 +1540,8 @@ contract A1_PaniniGame1Helper {
         //damage can'dan az. uygula.
         p1.defenderHp -= p2.damage;
         //eger heal + lifesteal yuzunden damage negatif ise. max hp'yi gecme
-        if(p2.damage < 0 && p1.defenderHp > ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
-          p1.defenderHp = ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
+        if(p2.damage < 0 && p1.defenderHp > int256(((p1ActiveCards[p1.defenderCardIndex] >> 100 ) & 1048575)) ) {
+          p1.defenderHp = int256(((p1ActiveCards[p1.defenderCardIndex]>> 100 ) & 1048575));
         }
       }
       //p2
@@ -1492,8 +1550,8 @@ contract A1_PaniniGame1Helper {
         p2.aktiveCardDeath = true;
       } else {
         p2.defenderHp -= p1.damage;
-        if(p1.damage < 0 && p2.defenderHp > ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) ) {
-          p2.defenderHp = ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100);
+        if(p1.damage < 0 && p2.defenderHp > int256(((p2ActiveCards[p2.defenderCardIndex] >> 100 ) & 1048575)) ) {
+          p2.defenderHp = int256(((p2ActiveCards[p2.defenderCardIndex] >> 100 ) & 1048575));
         }
       }
 
@@ -1557,11 +1615,11 @@ contract A1_PaniniGame1Helper {
         //life span ile olen defender'lari atla.
         //defender index bu if-else'de max 4 olmakta!
         //ONEMLI:defender index 4 olunca yasayan kart kalmadi demektir.
-        if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+        if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] >> 100 ) & 1048575) == 0) {
           p1.defenderCardIndex++;
-          if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+          if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] >> 100 ) & 1048575) == 0) {
             p1.defenderCardIndex++;
-            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+            if(p1.defenderCardIndex < 4 && ((p1ActiveCards[p1.defenderCardIndex] >> 100 ) & 1048575) == 0) {
               p1.defenderCardIndex++;
             }     
           }   
@@ -1569,7 +1627,7 @@ contract A1_PaniniGame1Helper {
 
         //DEFENDER INDEX 4 DEGIL ISE
         if(p1.defenderCardIndex < 4) {
-          p1.defenderHp = ( p1ActiveCards[p1.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;          
+          p1.defenderHp = int256(( p1ActiveCards[p1.defenderCardIndex] >> 100 ) & 1048575);          
         }
       }
       //p2
@@ -1577,11 +1635,11 @@ contract A1_PaniniGame1Helper {
         p2ActiveCards[4] = p2ActiveCards[4] - p2ActiveCards[p2.defenderCardIndex];          
         p2ActiveCards[p2.defenderCardIndex] = 0;
         p2.defenderCardIndex++;
-        if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+        if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] >> 100 ) & 1048575) == 0) {
           p2.defenderCardIndex++;
-          if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+          if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] >> 100 ) & 1048575) == 0) {
             p2.defenderCardIndex++;
-            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100) == 0) {
+            if(p2.defenderCardIndex < 4 && ((p2ActiveCards[p2.defenderCardIndex] >> 100 ) & 1048575) == 0) {
               p2.defenderCardIndex++;
             }     
           }   
@@ -1589,7 +1647,7 @@ contract A1_PaniniGame1Helper {
 
         //DEFENDER INDEX 4 DEGIL ISE
         if(p2.defenderCardIndex < 4) {
-          p2.defenderHp = ( p2ActiveCards[p2.defenderCardIndex] & 1329226728134315644674405563577139200) >> 100;          
+          p2.defenderHp = int256(( p2ActiveCards[p2.defenderCardIndex] >> 100 ) & 1048575);          
         }
       }
 
@@ -1635,29 +1693,26 @@ contract A1_PaniniGame1Helper {
           p2.passiveCardDeath = false;
         }
       
-      } 
-      //kazanma kaybetme berabere durumlari
-      //berabere
-      else if(p2.defenderCardIndex == 4) {
-        return 1;
-      //p2 winner
-      } else if(p1.defenderCardIndex == 4) {
-        return 2;
-      } else {  
-        return 3;
       }
+      else {
+        //kazanma kaybetme berabere durumlari
+        if(p1.defenderCardIndex == 4 && p2.defenderCardIndex == 4) {
+          //berabere
+          return 3;
+        } else if(p2.defenderCardIndex == 4) {
+          //p1 winner
+          return 1;
+        }
+        //p2 winner
+        return 2;
+      } 
 
     }
 
     return 0;
   }
 
-
 }
-
-
-
-
 //GAME-1
 //oyun'un hazir hale getirilmesi.
 //1. controller'a ekle. (Controller tarafinda.)
@@ -1751,6 +1806,23 @@ contract A1_PaniniGame1 is PaniniGameBase{
     );
     
     
+    _escrow(_card1);
+    _escrow(_card2);
+    _escrow(_card3);
+    _escrow(_card4);
+    if(_card5 != 0) {
+      _escrow(_card5);      
+    }
+    if(_card6 != 0) {
+      _escrow(_card6);      
+    }
+    if(_card7 != 0) {
+      _escrow(_card7);      
+    }
+    if(_card8 != 0) {
+      _escrow(_card8);      
+    }
+
     //combine cardId's and enter queue
     _queueOrFindGame( msg.sender,
       (_card1 
@@ -1838,27 +1910,59 @@ contract A1_PaniniGame1 is PaniniGameBase{
     if(gameState == 0) {      
       return "oyun devam ediyor.";
       //hic birsey yapma. Masraf zamansiz cagirana girsin.
-    } else if(gameState == 1) {
+    } else {
+      if(gameState == 1) {
       //TODO: score guncelle.
       //kart random sec 2. oyuncudan ve 1. oyuncuya ver
-      // ilk cagirana total escrow edilen etheri geri ver.
-      return "1. oyuncu kazandi";    
-    } else if(gameState == 2) {
-      //TODO: score guncelle.
-      //kart random sec 1. oyuncudan ve 2. oyuncuya ver
-      //oyunu finishedgames'e koy.
-      // ilk cagirana total escrow edilen etheri geri ver.
-      return "2. oyuncu kazandi";    
-    } else if(gameState == 3) {
-      //TODO: score guncelle.
-      //oyunu finishedgames'e koy.
-      // ilk cagirana total escrow edilen etheri geri ver.
-      return "Berabere.";    
-    }
+      // ilk cagirana total escrow edilen etheri geri ver.      
+        return "1. oyuncu kazandi";    
+      } else if(gameState == 2) {
+        //TODO: score guncelle.
+        //kart random sec 1. oyuncudan ve 2. oyuncuya ver
+        //oyunu finishedgames'e koy.
+        // ilk cagirana total escrow edilen etheri geri ver.
+        return "2. oyuncu kazandi";    
+      } else if(gameState == 3) {
+        //TODO: score guncelle.
+        //oyunu finishedgames'e koy.
+        // ilk cagirana total escrow edilen etheri geri ver.
+        return "Berabere.";    
+      }
+      
+      _transfer(game.player1, game.herdOfA2_Player1 & 4294967295);
+      _transfer(game.player1, (game.herdOfA2_Player1>>32) & 4294967295);
+      _transfer(game.player1, (game.herdOfA2_Player1>>64) & 4294967295);
+      _transfer(game.player1, (game.herdOfA2_Player1>>96) & 4294967295);
+      if(((game.herdOfA2_Player1>>128) & 4294967295) != 0) {
+        _transfer(game.player1, (game.herdOfA2_Player1>>128) & 4294967295);
+      }
+      if(((game.herdOfA2_Player1>>160) & 4294967295) != 0) {
+        _transfer(game.player1, (game.herdOfA2_Player1>>160) & 4294967295);
+      }
+      if(((game.herdOfA2_Player1>>192) & 4294967295) != 0) {
+        _transfer(game.player1, (game.herdOfA2_Player1>>192) & 4294967295);
+      }
+      if(((game.herdOfA2_Player1>>224) & 4294967295) != 0) {
+        _transfer(game.player1, (game.herdOfA2_Player1>>224) & 4294967295);
+      }
 
-    //cagiran oyuncunun kartlarini geri ver.
-    //yukaridaki return'lar test.
-    return "buraya girmemesi lazim";
+      _transfer(game.player2, game.herdOfA2_Player2 & 4294967295);
+      _transfer(game.player2, (game.herdOfA2_Player2>>32) & 4294967295);
+      _transfer(game.player2, (game.herdOfA2_Player2>>64) & 4294967295);
+      _transfer(game.player2, (game.herdOfA2_Player2>>96) & 4294967295);
+      if(((game.herdOfA2_Player2>>128) & 4294967295) != 0) {
+        _transfer(game.player2, (game.herdOfA2_Player2>>128) & 4294967295);
+      }
+      if(((game.herdOfA2_Player2>>160) & 4294967295) != 0) {
+        _transfer(game.player2, (game.herdOfA2_Player2>>160) & 4294967295);
+      }
+      if(((game.herdOfA2_Player2>>192) & 4294967295) != 0) {
+        _transfer(game.player2, (game.herdOfA2_Player2>>192) & 4294967295);
+      }
+      if(((game.herdOfA2_Player2>>224) & 4294967295) != 0) {
+        _transfer(game.player2, (game.herdOfA2_Player2>>224) & 4294967295);
+      }
+    }
   }
 
 }
