@@ -445,6 +445,8 @@ library CardBase {
 
   // metedata
   uint256[] metadatas; 
+  //card indexs with rarity
+  mapping(uint256 => uint256[]) rarityIndexs; //1 common, 2 rare, 3 exotic
   
   function A_PaniniCard () public {
     initCardBase();
@@ -497,6 +499,8 @@ library CardBase {
 
   //usuable card id starts with 1.
   function _createCardBase(uint256 _metedata ) internal{
+    uint256 rarity = (_metedata >> 232) & 255;
+    rarityIndexs[rarity].push(metadatas.length);
 
     metadatas.push(_metedata);
   }
@@ -507,19 +511,26 @@ library CardBase {
     _createCardBase(_metedata );
   }
 
-  //returns index of animalCardBase
-  // random'u nasil yapacagiz buna karar verilecek.
-  //kartlar eklenirken bir islem yapilacak. random card genereate ederken secim buna gore. bir array'den index cikartilacak.
-  function generateRandomBaseId(uint256 random) public view returns (uint256) {
-    //private test for random
-    uint256 id = metadatas.length;
-    uint256 delta = metadatas.length;
-    require(delta > 0);
-
-    id = (  random  * ( id + 2 ) * ( 3 * id + 2 ) ) % delta;
-    return id;
+  function randomToRarity(uint256 _random) public pure returns (uint256) {
+    
+    if((_random % 100) < 70) {
+      return 1;
+    }    
+    if((_random % 100) < 95) {
+     return 2;
+    }
+    return 3;
   }
 
+
+  function randomToBaseIdByRarity(uint256 _random, uint256 _rarity) public view returns (uint256) {
+    //index of metedata
+    return _random % rarityIndexs[_rarity].length;
+  }
+
+  function randomToBaseId(uint256 _random) public view returns (uint256) {
+    return randomToBaseIdByRarity(_random, randomToRarity(_random));
+  }
 
 }
 
@@ -528,7 +539,7 @@ contract A_PaniniCardPackage is AttachingAX_PaniniController, HasA_PaniniState {
  
   event PackageCreated(uint256 id, address receiver, uint256 baseId1, uint256 baseId2, uint256 baseId3, uint256 baseId4, uint256 baseId5 );
 
-  struct PackagePrice{
+  struct PackagePrice {
     uint256 normal;
     uint256 initial;
     uint256 special;
@@ -556,18 +567,96 @@ contract A_PaniniCardPackage is AttachingAX_PaniniController, HasA_PaniniState {
     paniniCard = A_PaniniCard(_address);         
   }
 
-  function createPackage(address _address) public returns(uint256, uint256, uint256, uint256, uint256){
-    numberOfPackageCreated += 1; //ayni zamanda package id.
-    uint256 packageId = numberOfPackageCreated;
-
+  function createPackage(address _address) public returns(uint256, uint256, uint256, uint256, uint256) {
+    
     //generating cards bases
-    uint256 baseId1 = paniniCard.generateRandomBaseId(numberOfPackageCreated);
-    uint256 baseId2 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId1);
-    uint256 baseId3 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId2);
-    uint256 baseId4 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId3);
-    uint256 baseId5 = paniniCard.generateRandomBaseId(numberOfPackageCreated * baseId4);
-    emit PackageCreated(packageId, _address, baseId1, baseId2, baseId3, baseId4, baseId5);
-    return (baseId1, baseId2, baseId3, baseId4, baseId5);
+    uint256[] memory baseIds = new uint256[](6);
+    numberOfPackageCreated += 1; //ayni zamanda package id.
+    baseIds[5] = numberOfPackageCreated;//packageId
+
+    //NOTE-1: zamana, kisiye ve isleme bagli degisim var. Bu sayede;
+    // farkli zamanlarda farkli kartlar uretilecektir(ayni kisi ve islem icin.).
+    // farkli islemlerde farkli kartlar uretilecektir.(ayni kisi ve ayni zaman dilimi icin.).
+    // farki kisiler icin farkli kartlar uretilecektir.(ayni zaman dilimi ve ayni islem icin.).
+    //NOTE-2: 250 block yaklasik 1 saat yapmakta. Bu sayede brute force ile paket secmek oldukca zahmetli.
+    uint256[] memory rnd = new uint256[](4); //last index: random
+    rnd[1] = uint256(keccak256(_address))%1000000; //kisiye bagli degisim
+    rnd[2] = uint256(keccak256(baseIds[5]))%1000000; //isleme bagli degisim
+    rnd[3] = uint256(keccak256(block.blockhash( (block.number/250 )*250 )))%1000000;//zamana bagli degisim
+    
+    rnd[2] = 0;//rare count
+    rnd[3] = 0; //epic count
+
+    //1. card
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[2] * rnd[3]))%1000000000; 
+    rnd[1] = paniniCard.randomToRarity(rnd[0]);//rarity
+    rnd[rnd[1]] += 1; //epic or rare count ++
+    baseIds[0] = paniniCard.randomToBaseIdByRarity(rnd[0], rnd[1]);
+  
+    //2. card
+    rnd[0] = uint256(keccak256(baseIds[0] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToRarity(rnd[0]);//rarity
+    if(rnd[1] == 3 && (rnd[3] == 1) ) {//if has exotic and new card is exotic
+      rnd[1] = 2;  
+    }
+    if(rnd[1] == 2 && (rnd[3] + rnd[2] == 2) ) {//if has 2 exo/rary card and new card is rare
+      rnd[1] = 1;  
+    }
+    if(rnd[1] != 1) {
+      rnd[rnd[1]] += 1; //epic or rare count ++
+    }
+    baseIds[1] = paniniCard.randomToBaseIdByRarity(rnd[0], rnd[1]);
+
+    //3. card
+    rnd[0] = uint256(keccak256(baseIds[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToRarity(rnd[0]);//rarity
+    if(rnd[1] == 3 && (rnd[3] == 1) ) {//if has exotic and new card is exotic
+      rnd[1] = 2;  
+    }
+    if(rnd[1] == 2 && (rnd[3] + rnd[2] == 2) ) {//if has 2 exo/rary card and new card is rare
+      rnd[1] = 1;  
+    }
+    if(rnd[1] != 1) {
+      rnd[rnd[1]] += 1; //epic or rare count ++
+    }
+    baseIds[2] = paniniCard.randomToBaseIdByRarity(rnd[0], rnd[1]);
+
+    //4. card
+    rnd[0] = uint256(keccak256(baseIds[2] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToRarity(rnd[0]);//rarity
+    if(rnd[1] == 3 && (rnd[3] == 1) ) {//if has exotic and new card is exotic
+      rnd[1] = 2;  
+    }
+    if(rnd[1] == 2 && (rnd[3] + rnd[2] == 2) ) {//if has 2 exo/rary card and new card is rare
+      rnd[1] = 1;  
+    }
+    if(rnd[1] != 1) {
+      rnd[rnd[1]] += 1; //epic or rare count ++
+    }
+    baseIds[3] = paniniCard.randomToBaseIdByRarity(rnd[0], rnd[1]);
+
+    //5. card
+    //eger hic rare/exo card cikmamis ise 1 tane rare ver.
+    rnd[0] = uint256(keccak256(baseIds[3] * rnd[0]))%1000000000;
+    if(rnd[3] + rnd[1] == 0) {
+      baseIds[4] = paniniCard.randomToBaseIdByRarity(rnd[0], 2);
+    } else {
+      rnd[1] = paniniCard.randomToRarity(rnd[0]);//rarity
+      if(rnd[1] == 3 && (rnd[3] == 1) ) {//if has exotic and 2.card is exotic
+        rnd[1] = 2;  
+      }
+      if(rnd[1] == 2 && (rnd[3] + rnd[2] == 2) ) {//if has 2 exo/rary card and new card is rare
+        rnd[1] = 1;  
+      }
+      if(rnd[1] != 1) {
+        rnd[rnd[1]] += 1; //epic or rare count ++
+      }
+      baseIds[4] = paniniCard.randomToBaseIdByRarity(rnd[0], rnd[1]);
+    }
+
+
+    emit PackageCreated(baseIds[5], _address, baseIds[0], baseIds[1], baseIds[2], baseIds[3], baseIds[4]);
+    return (baseIds[0], baseIds[1], baseIds[2], baseIds[3], baseIds[4]);
   }
 
   //fiyatlar sonradan degistirilemesin?
@@ -589,7 +678,6 @@ contract A_PaniniCardPackage is AttachingAX_PaniniController, HasA_PaniniState {
     }
     //TO DO: ozel gun ise fiyat belirle
     //else if .. {}
-
   }
   
 }
@@ -620,7 +708,6 @@ contract A_PaniniMarket is AttachingAX_PaniniController, HasA_PaniniState, ERC72
   event Bid(address owner, address sender, uint256 _cardId, uint256 amount);
 
   bool public isPaniniMarket = true;
-
 
   // Values 0-10,000 map to 0%-100%
   uint256 ownerCut;
@@ -807,7 +894,6 @@ contract A_PaniniMarket is AttachingAX_PaniniController, HasA_PaniniState, ERC72
 
 }
 
-
 /**
  * The PaniniBase 
  */
@@ -866,8 +952,6 @@ contract A_PaniniMarket is AttachingAX_PaniniController, HasA_PaniniState, ERC72
   
 }
 
-
-
 contract UsingCard is PaniniBase, PaniniERC721Token {
   //ANIMAL CARDS
   // Bu deger her card uretildiginde emit ile server tarafinda tutulacak. Ve arayuzde oradan gosterilecek.
@@ -890,15 +974,15 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
     require( _cardId != _burnedCardId );
 
     cardArr[1] = getCard(_cardId);
-    cardArr[0] = paniniCard.getMetadataFromBaseId(((cardArr[1] >> 60 ) & 4095));
+    cardArr[0] = paniniCard.getMetadataFromBaseId(cardArr[1] >> 240);
     cardArr[2] = getCard(_burnedCardId);
 
     //cart'lar var mi
     require( (cardArr[0] != 0) && (cardArr[1] != 0) );
     //lvl check. max 10
-    require( (cardArr[1]>>63) < 10);
+    require( (cardArr[1]>>236) < 10);
     //lvl check. same lvl
-    require( (cardArr[1]>>63) == (cardArr[2]>>63) );
+    require( (cardArr[1]>>236) == (cardArr[2]>>236) );
 
     //check is owner of card.
     require( super.ownerOf(_cardId) == msg.sender && super.ownerOf(_burnedCardId) == msg.sender ); 
@@ -927,7 +1011,7 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
     cardArr[2] = cardArr[2] | (((((cardArr[0] >> 120 ) & 255))/10) <<120); //buff10
 
     //++lvl
-    cardArr[2] = 1 << 63;
+    cardArr[2] = 1 << 236;
     cards[_cardId] = cardArr[1] + cardArr[2];
   }
 
@@ -944,18 +1028,77 @@ contract UsingCard is PaniniBase, PaniniERC721Token {
     // set baseId of metedata
     //meteData'nin alinmasi
     uint256 metedata = paniniCard.getMetadataFromBaseId(_baseId);
-    //0xFFF0000000000000000000000000000000000000000000000000000000000000
-    //0x   F000000000000000000000000000000000000000000000000000000000000
-    cards[cardId] = (_baseId << 60)
+    //0xFFFF0000000000000000000000000000000000000000000000000000000000000//baseid
+    //0x    F000000000000000000000000000000000000000000000000000000000000//lvl
+    cards[cardId] = (_baseId << 240)
       //0 olsun ilk lvl. islem yapmaya gerek yok.| (0 << 26502705971675764943749462511143777737412258453134284371824093019389296640)
       | (metedata);
     return cards[cardId];
   }
 
-  function _mintRandomCard(address _to) internal returns(uint256) {
-    uint256 baseId = paniniCard.generateRandomBaseId(mintedCardCount+1);
-    //kart'in uretilmesi.
-    return _mintCardWithBaseId(_to, baseId);
+  //1 rare, 9 normal card.
+  function _mintNewPlayerCards(address _to) internal {
+
+    //NOTE-1: zamana, kisiye ve isleme bagli degisim var. Bu sayede;
+    // farkli zamanlarda farkli kartlar uretilecektir(ayni kisi ve islem icin.).
+    // farkli islemlerde farkli kartlar uretilecektir.(ayni kisi ve ayni zaman dilimi icin.).
+    // farki kisiler icin farkli kartlar uretilecektir.(ayni zaman dilimi ve ayni islem icin.).
+    //NOTE-2: 250 block yaklasik 1 saat yapmakta. Bu sayede brute force ile paket secmek oldukca zahmetli.
+    uint256[] memory rnd = new uint256[](4); //last index: random
+    rnd[1] = uint256(keccak256(_to))%1000000; //kisiye bagli degisim
+    rnd[2] = uint256(keccak256(mintedCardCount))%1000000; //isleme bagli degisim
+    rnd[3] = uint256(keccak256(block.blockhash( (block.number/250 )*250 )))%1000000;//zamana bagli degisim
+
+    //1. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[2] * rnd[3]))%1000000000; 
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1); //baseid -> common
+    _mintCardWithBaseId(_to, rnd[1]);
+
+    //2. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+
+    //3. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+
+    //4. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+
+    //5. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+
+    //6. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+    
+    //7. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+    
+    //8. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+    
+    //9. card    
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 1);
+    _mintCardWithBaseId(_to, rnd[1]);
+
+    //10 card: rare
+    rnd[0] = uint256(keccak256(rnd[1] * rnd[0]))%1000000000;
+    rnd[1] = paniniCard.randomToBaseIdByRarity(rnd[0], 2); //baseid -> 1 rare
+    _mintCardWithBaseId(_to, rnd[1]);
+
   }
   
   function isCardExist(uint256 _cardId) public view returns(bool) {
@@ -1021,16 +1164,7 @@ contract A2_Player is UsingCard{
 //    players[msg.sender].owner = msg.sender;
     players[msg.sender].name = _name;
     //10x card 
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
-    _mintRandomCard(msg.sender);
+    _mintNewPlayerCards(msg.sender);
   }    
 
   function getA2_PlayerName() __isA2_Player public view returns(string) {
@@ -1043,25 +1177,25 @@ contract A2_Player is UsingCard{
     mutex.enter();
 
     uint256 price = paniniCardPackage.computePriceOfPackage(_numberOfPackage);
-    require (price == msg.value);
-    uint256 baseId1;
-    uint256 baseId2;
-    uint256 baseId3;
-    uint256 baseId4;
-    uint256 baseId5;
-    
+    require (price >= msg.value);
+    uint256[] memory baseIds = new uint256[](5);
     for(uint256 i = 0; i < _numberOfPackage; i++) {
-      (baseId1, baseId2, baseId3, baseId4, baseId5) 
+      (baseIds[0], baseIds[1], baseIds[2], baseIds[3], baseIds[4]) 
         = paniniCardPackage.createPackage(msg.sender);
-      _mintCardWithBaseId(msg.sender, baseId1);
-      _mintCardWithBaseId(msg.sender, baseId2);
-      _mintCardWithBaseId(msg.sender, baseId3);
-      _mintCardWithBaseId(msg.sender, baseId4);
-      _mintCardWithBaseId(msg.sender, baseId5);
+      _mintCardWithBaseId(msg.sender, baseIds[0]);
+      _mintCardWithBaseId(msg.sender, baseIds[1]);
+      _mintCardWithBaseId(msg.sender, baseIds[2]);
+      _mintCardWithBaseId(msg.sender, baseIds[3]);
+      _mintCardWithBaseId(msg.sender, baseIds[4]);
     }
+
+    if(price > msg.value) {
+      require(msg.sender.call.value(msg.value - price)());
+    }
+
     //TODO: bu distributeBalance artik paniniState'de. El atilacak.
-    require(address(paniniController).call.value(msg.value)());
-    paniniController.distributeBalance(msg.value);        
+    require(address(paniniController).call.value(price)());
+    paniniController.distributeBalance(price);        
     mutex.left();
   }
 
@@ -1255,8 +1389,6 @@ contract PaniniGameBase is HasA_PaniniState, ERC721Receiver{
   }
 
 }
-
-
 
 contract A1_PaniniGame1Helper {
     
@@ -1528,10 +1660,10 @@ contract A1_PaniniGame1Helper {
 
   function getCards(uint256 _herd) internal view returns (uint256[]){
     uint256[] memory _cards = new uint256[](5);
-    _cards[0] = playerContract.getCard(_herd & 4294967295);
-    _cards[1] = playerContract.getCard((_herd>>32) & 4294967295);
-    _cards[2] = playerContract.getCard((_herd>>64) & 4294967295);
-    _cards[3] = playerContract.getCard((_herd>>96) & 4294967295);
+    _cards[0] = playerContract.getCard(_herd & 1125899906842623);
+    _cards[1] = playerContract.getCard((_herd>>50) & 1125899906842623);
+    _cards[2] = playerContract.getCard((_herd>>100) & 1125899906842623);
+    _cards[3] = playerContract.getCard((_herd>>150) & 1125899906842623);
     _cards[4] = _cards[0] + _cards[1] + _cards[2] + _cards[3];
     return _cards;
   }
@@ -1764,32 +1896,16 @@ contract A1_PaniniGame1Helper {
 }
 
 //GAME-1
-//oyun'un hazir hale getirilmesi.
-//1. controller'a ekle. (Controller tarafinda.)
-//2. state'i ekle. (setState metodunu kulanarak.)
 contract A1_PaniniGame1 is PaniniGameBase{
-  //32 bit -> bitwise
-  /*struct Herd {
-    address owner;
-    //active cards
-    uint256 card1;
-    uint256 card2;
-    uint256 card3;
-    uint256 card4;
-    //passive cards
-    uint256 card5;
-    uint256 card6;
-    uint256 card7;
-    uint256 card8;
-  }*/
 
   struct Data {
     uint256 id;  //0 olabilir.
     address player1;
     address player2;
     uint256 startTime;
-    uint256 herdOfA2_Player1;
-    uint256 herdOfA2_Player2;    
+    uint256 p1Herd;
+    uint256 p2Herd;    
+    uint256 state; // 0 baslangic. 1. 1. oyuncu ready. 2. 2. oyuncu ready. 3. iki oyuncu'da ready.
   }
   
   A1_PaniniGame1Helper helper;
@@ -1805,8 +1921,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
   int256 MAX_SCORE = 2800;
   int256 SCORE_GAP = 50;
 
-  address[] players;
-  mapping (address => uint256) playersIndex;
   mapping (address => int256) playerScore;
 
 
@@ -1823,9 +1937,6 @@ contract A1_PaniniGame1 is PaniniGameBase{
 
   mapping (uint256 => Data) startedGames;
   //mapping (uint256 => Data) finishedGames;
-
-  //butun oyuncularin oyunlarinin listesi? 
-  uint256[] games;
   //Bir oyuncuya ait oyun
   //not: bir seferde tek bir oyun baslatabilsin.
   mapping (address => uint256) myGame;    
@@ -1840,52 +1951,24 @@ contract A1_PaniniGame1 is PaniniGameBase{
   
   function stopQueue() __whenNotPaused public {    
     if(myPendingGame[msg.sender][0] != 0) {
+      Data memory game = pendingGames[myPendingGame[msg.sender][0]][uint256(myPendingGame[msg.sender][1])];
       delete pendingGames[myPendingGame[msg.sender][0]][uint256(myPendingGame[msg.sender][1])];
       myPendingGame[msg.sender][0] = 0;      
+
+      _transfer(game.player1, game.p1Herd>>201);
     }
   }
-  
-  //oyun bulursa oyun baslatir
-  //bulamaz ise siraya girer
-  function startGameorEnterQueue(uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4 ) __isGamePlayable __whenNotPaused public {
-    //card'lari kontrol et.
-    //TODO: cardid = 0 ise kullanilmiyor. passivecard'lar icin.
-    require ( 
-      nft.ownerOf(_card1) == address(msg.sender) &&
-      nft.ownerOf(_card2) == address(msg.sender) &&
-      nft.ownerOf(_card3) == address(msg.sender) &&
-      nft.ownerOf(_card4) == address(msg.sender) );
 
-    uint256 escrowed = 3; //TODO: random index 0-3
-    if(escrowed == 0) {
-      _escrow(_card1);
-      escrowed = _card1;
-    } else if(escrowed == 1) {
-      _escrow(_card2);
-      escrowed = _card2;
-    } else if(escrowed == 2) {
-      _escrow(_card3);
-      escrowed = _card3;
-    } else if(escrowed == 3) {
-      _escrow(_card4);
-      escrowed = _card4;
-    }   
-  
-    //combine cardId's and enter queue
-    _queueOrFindGame( msg.sender,
-      ( _card1 
-      | (_card2 << 32)
-      | (_card3 << 64)
-      | (_card4 << 96))
-      | (escrowed << 128)//escrow index
-    );
+  function generateCryptoHerdByCards(uint256 _card1, uint256 _card2, uint256 _card3, uint256 _card4, string _secret) public pure returns(uint256) {
+    return ( _card1 
+      | (_card2 << 50)
+      | (_card3 << 100)
+      | (_card4 << 150)) + uint256(( keccak256(_secret) & 1606938044258990275541962092341162602522202993782792835301375));        
   }
 
-  function _queueOrFindGame(address _address, uint256 _herds) internal {
+  function _queueOrFindGame(address _address, uint256 _cryptoHerd) internal {
     //oyuncu ilk kez oynuyor ise.
-    //register yapmayi dusundum ama, her oyunda score olmayabilir.
-    //sonra player olayini degistirebilirim.
-    if(playersIndex[_address] == 0) {
+    if(playerScore[_address] == 0) {
       playerScore[_address] = NEW_PLAYER_SCORE;
     }
 
@@ -1918,34 +2001,79 @@ contract A1_PaniniGame1 is PaniniGameBase{
       numberOfGames +=1; //id.
       game.id = numberOfGames;
       game.player2 = _address;
-      game.herdOfA2_Player2 = _herds;
+      game.p2Herd = _cryptoHerd;
       game.startTime = now;
       startedGames[game.id] = game;
 
-      games.push(numberOfGames);
-      myGame[game.player1] = numberOfGames;
-      myGame[game.player2] = numberOfGames;
+      myGame[game.player1] = game.id;
+      myGame[game.player2] = game.id;
 
     } else {
       //note: struct olustururken null veremedigimiz icin hersey player1
       //starttime = created time for pending players.
       /*uint256 id;  //0 olabilir.
-    address player1;
-    address player2;
-    uint256 startTime;
-    Herd herdOfA2_Player1;
-    Herd herdOfA2_Player2;    */
-      Data memory newGame = Data(0, _address, _address, now, _herds, 0);
-      //buraya kadar 100k
-      //bu satir 400k gaz...
+      address player1;
+      address player2;
+      uint256 startTime;
+      Herd p1Herd;
+      Herd p2Herd;  
+      state  */
+      Data memory newGame = Data(0, _address, _address, now, _cryptoHerd, 0, 0);
+
       myPendingGame[msg.sender][0] = index;
-      myPendingGame[msg.sender][1] = int256 (pendingGames[index].length); 
+      myPendingGame[msg.sender][1] = int256(pendingGames[index].length); 
       pendingGames[index].push(newGame);
     } 
 
+  }
 
+  //oyun bulursa oyun baslatir
+  //bulamaz ise siraya girer
+  function enterQueue(uint256 _cryptoHerd, uint256 _escowedCard ) __isGamePlayable __whenNotPaused public {
+    //myPendingGame'de kendisi yok ise. 2. kez oyun arama baslatamaz. 
+    // bu kontrol ayrica rakip olarak kendisiyle eslesmesinin de onune gecmesini sagliyor.
+    require(myPendingGame[msg.sender][0] == 0);
+
+    //card'lari kontrol et.
+    // require ( 
+    //   nft.ownerOf(_card1) == address(msg.sender) &&
+    //   nft.ownerOf(_card2) == address(msg.sender) &&
+    //   nft.ownerOf(_card3) == address(msg.sender) &&
+    //   nft.ownerOf(_card4) == address(msg.sender) );
+    require(nft.ownerOf(_escowedCard) == address(msg.sender));
+    _escrow(_escowedCard);
+    _queueOrFindGame( msg.sender, (_cryptoHerd | (_escowedCard << 201) ));
   }
   
+  //bu islem gerceklestikten 1? saat sonra oyun baslatilabiliyor.
+  function startGame(uint256 _gameId, string _secret ) __isGamePlayable __whenNotPaused public view{
+    Data memory game = startedGames[_gameId];
+    require(game.id != 0);
+
+    if(game.player1 == msg.sender && game.state != 1 && game.state != 3 ) {
+      
+      game.p1Herd = game.p1Herd - uint256(( keccak256(_secret) & 1606938044258990275541962092341162602522202993782792835301375));
+      require(nft.ownerOf((game.p1Herd & 1125899906842623)) == address(msg.sender));
+      require(nft.ownerOf(((game.p1Herd>>50) & 1125899906842623)) == address(msg.sender));
+      require(nft.ownerOf(((game.p1Herd>>100) & 1125899906842623)) == address(msg.sender));
+      require(nft.ownerOf(((game.p1Herd>>150) & 1125899906842623)) == address(msg.sender));
+      game.state += 1;
+      game.startTime = now;
+
+    } else if(game.player2 == msg.sender && game.state != 2 && game.state != 3 ) {
+    
+      game.p2Herd = game.p2Herd - uint256(( keccak256(_secret) & 1606938044258990275541962092341162602522202993782792835301375));
+      require(nft.ownerOf((game.p2Herd & 1125899906842623)) == address(msg.sender));
+      require(nft.ownerOf(((game.p2Herd>>50) & 1125899906842623)) == address(msg.sender));
+      require(nft.ownerOf(((game.p2Herd>>100) & 1125899906842623)) == address(msg.sender));
+      require(nft.ownerOf(((game.p2Herd>>150) & 1125899906842623)) == address(msg.sender));
+      game.state += 2;      
+      game.startTime = now;    
+
+    }
+
+  }
+
   //p1: winner.  
   function _reCalcScores(address _p1, address _p2, bool _draw ) internal {
 
@@ -1992,43 +2120,58 @@ contract A1_PaniniGame1 is PaniniGameBase{
   }
   
   //function calculateGameState(uint256 _gameId, uint256 _time)
-  function checkEndFinishGame(uint256 _gameId) public returns(string){
+  function checkEndFinishGame(uint256 _gameId) public returns(string) {
     //TODO: Check gameId
-    //todo: bu metod cagrilinca oyunu finishedgame'e koy.
-    //cagirmada kontrol et. eger fnishedgames'de ise hesaplama yapma.
     Data memory game = startedGames[_gameId];
-    uint256 gameState = helper.calculateGameState(game.herdOfA2_Player1, game.herdOfA2_Player2, (now - game.startTime) / 60 );
-    if(gameState == 0) {      
-      return "oyun devam ediyor.";
-      //hic birsey yapma. Masraf zamansiz cagirana girsin.
+    require(game.id != 0);
+    require((now - game.startTime) > 3600);
+    
+    if(game.state == 0 ) {
+        return "oyun henuz baslatilmadi.";
     } else {
-      if(gameState == 1) {
-      //TODO: score guncelle.
-      //kart random sec 2. oyuncudan ve 1. oyuncuya ver
-      // ilk cagirana total escrow edilen etheri geri ver.      
-        _transfer(game.player1, game.herdOfA2_Player1>>128);
-        _transfer(game.player1, game.herdOfA2_Player2>>128);
-        _reCalcScores(game.player1, game.player2, false);
-        return "1. oyuncu kazandi";    
-      } else if(gameState == 2) {
-        //TODO: score guncelle.
-        //kart random sec 1. oyuncudan ve 2. oyuncuya ver
-        //oyunu finishedgames'e koy.
-        // ilk cagirana total escrow edilen etheri geri ver.
-        _transfer(game.player2, game.herdOfA2_Player1>>128);
-        _transfer(game.player2, game.herdOfA2_Player2>>128);
-        _reCalcScores(game.player2, game.player1, false);
-        return "2. oyuncu kazandi";    
-      } else if(gameState == 3) {
-        //TODO: score guncelle.
-        //oyunu finishedgames'e koy.
-        // ilk cagirana total escrow edilen etheri geri ver.
-        _transfer(game.player1, game.herdOfA2_Player1>>128);
-        _transfer(game.player2, game.herdOfA2_Player2>>128);
-        _reCalcScores(game.player1, game.player2, true);
-        return "Berabere.";    
+      uint256 gameState = game.state;
+      if(gameState == 3 ) {
+        gameState = helper.calculateGameState(game.p1Herd, game.p2Herd, (now - game.startTime) / 60 );
+      }
+
+      if(gameState == 0) {      
+        return "oyun devam ediyor.";
+        //hic birsey yapma. Masraf zamansiz cagirana girsin.
+      } else {
+
+        delete startedGames[_gameId];
+        delete myGame[game.player1];
+        delete myGame[game.player2];
+
+        if(gameState == 1) {
+          //TODO: score guncelle.
+          //kart random sec 2. oyuncudan ve 1. oyuncuya ver
+          // ilk cagirana total escrow edilen etheri geri ver.      
+          _transfer(game.player1, game.p1Herd>>201);
+          _transfer(game.player1, game.p2Herd>>201);
+          _reCalcScores(game.player1, game.player2, false);
+          return "1. oyuncu kazandi";    
+        } else if(gameState == 2) {
+          //TODO: score guncelle.
+          //kart random sec 1. oyuncudan ve 2. oyuncuya ver
+          //oyunu finishedgames'e koy.
+          // ilk cagirana total escrow edilen etheri geri ver.
+          _transfer(game.player2, game.p1Herd>>201);
+          _transfer(game.player2, game.p2Herd>>201);
+          _reCalcScores(game.player2, game.player1, false);
+          return "2. oyuncu kazandi";    
+        } else if(gameState == 3) {
+          //TODO: score guncelle.
+          //oyunu finishedgames'e koy.
+          // ilk cagirana total escrow edilen etheri geri ver.
+          _transfer(game.player1, game.p1Herd>>201);
+          _transfer(game.player2, game.p2Herd>>201);
+          _reCalcScores(game.player1, game.player2, true);
+          return "Berabere.";    
+        }
       }
     }
+
   }
 
 }
