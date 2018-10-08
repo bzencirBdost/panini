@@ -83,15 +83,15 @@ library BaseCardLib {
     //0xFF000000000000000000000000000000000000
     //passive7
     function toDebuff4(uint256 self) public pure returns(uint256) {
-        return (self >>144 ) & 65535; //0xFF000000000000000000000000000000000000
+        return (self >> 144 ) & 65535; //0xFF000000000000000000000000000000000000
     }
     //passive8
     function tobuff4(uint256 self) public pure returns(uint256) {
-        return (self & 22213632912598862894889094373145828843847680) >>136; //0xFF0000000000000000000000000000000000
+        return (self & 22213632912598862894889094373145828843847680) >> 136; //0xFF0000000000000000000000000000000000
     }
     //passive9
     function toDebuff5(uint256 self) public pure returns(uint256) {
-        return (self & 86772003564839308183160524895100893921280) >>128; //0xFF00000000000000000000000000000000
+        return (self & 86772003564839308183160524895100893921280) >> 128; //0xFF00000000000000000000000000000000
     }
     //338953138925153547590470800371487866880
     //0xFF000000000000000000000000000000
@@ -113,7 +113,7 @@ library BaseCardLib {
     //1152920405095219200
     //0xFFFFF0000000000
     function toSpeed(uint256 self) public pure returns(uint256) {
-        return (self >>40 ) & 1048575; //0xFFFFF0000000000
+        return (self >> 40 ) & 1048575; //0xFFFFF0000000000
     }
     function toWeight(uint256 self) public pure returns(uint256) {
         return (self & 1099510579200) >>20; //0xFFFFF00000
